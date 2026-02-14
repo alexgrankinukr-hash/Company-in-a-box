@@ -1,0 +1,51 @@
+{
+  "name": "aicib",
+  "version": "0.1.0",
+  "description": "AI Company-in-a-Box — spawn a hierarchical team of AI agents structured like a real company",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "aicib": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "multi-agent",
+    "company",
+    "automation",
+    "claude",
+    "llm",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.39",
+    "better-sqlite3": "^11.7.0",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "inquirer": "^12.3.2",
+    "js-yaml": "^4.1.0",
+    "ora": "^8.1.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.12.0",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist",
+    "src/templates"
+  ]
+}
