@@ -3,6 +3,7 @@ import chalk from "chalk";
 import { loadConfig } from "../core/config.js";
 import { CostTracker } from "../core/cost-tracker.js";
 import { isProcessRunning } from "../core/background-manager.js";
+import { header, agentColor, formatUSD } from "./ui.js";
 
 interface LogsOptions {
   dir: string;
@@ -56,7 +57,7 @@ export async function logsCommand(options: LogsOptions): Promise<void> {
       process.exit(1);
     }
 
-    console.log(chalk.bold(`\n  AI Company-in-a-Box — Logs for Job #${job.id}\n`));
+    console.log(header(`Logs for Job #${job.id}`));
     console.log(
       chalk.dim(
         `  Directive: "${job.directive.slice(0, 80)}${job.directive.length > 80 ? "..." : ""}"`
@@ -103,8 +104,9 @@ export async function logsCommand(options: LogsOptions): Promise<void> {
     } else {
       for (const log of logs) {
         const time = chalk.dim(log.timestamp.split(" ")[1] || log.timestamp);
+        const colorFn = agentColor(log.agent_role || "system");
         const role = log.agent_role
-          ? chalk.cyan(`[${log.agent_role}]`)
+          ? colorFn(`[${log.agent_role}]`)
           : "";
         console.log(`  ${time} ${role} ${log.content}`);
       }
@@ -115,7 +117,7 @@ export async function logsCommand(options: LogsOptions): Promise<void> {
     if (job.status === "completed") {
       console.log(
         chalk.dim(
-          `  Cost: $${job.total_cost_usd.toFixed(4)} | Turns: ${job.num_turns} | Duration: ${(job.duration_ms / 1000).toFixed(1)}s\n`
+          `  Cost: ${formatUSD(job.total_cost_usd)} | Turns: ${job.num_turns} | Duration: ${(job.duration_ms / 1000).toFixed(1)}s\n`
         )
       );
     } else if (job.status === "failed" && job.error_message) {

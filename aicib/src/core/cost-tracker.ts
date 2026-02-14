@@ -20,6 +20,12 @@ export interface AgentCostSummary {
   entry_count: number;
 }
 
+export interface DailyCostSummary {
+  date: string;
+  total_cost_usd: number;
+  entry_count: number;
+}
+
 export interface BackgroundJob {
   id: number;
   session_id: string;
@@ -42,6 +48,18 @@ export interface BackgroundLog {
   message_type: string;
   agent_role: string;
   content: string;
+}
+
+export interface JournalEntry {
+  id: number;
+  session_id: string;
+  directive: string;
+  summary: string;
+  deliverables: string | null; // JSON array of file paths
+  total_cost_usd: number;
+  num_turns: number;
+  duration_ms: number;
+  created_at: string;
 }
 
 // Approximate costs per million tokens (USD) — Updated Feb 2026
@@ -132,6 +150,21 @@ export class CostTracker {
       CREATE INDEX IF NOT EXISTS idx_bg_jobs_session ON background_jobs(session_id);
       CREATE INDEX IF NOT EXISTS idx_bg_jobs_status ON background_jobs(status);
       CREATE INDEX IF NOT EXISTS idx_bg_logs_job ON background_logs(job_id);
+
+      CREATE TABLE IF NOT EXISTS ceo_journal (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        directive TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        deliverables TEXT,
+        total_cost_usd REAL NOT NULL DEFAULT 0,
+        num_turns INTEGER NOT NULL DEFAULT 0,
+        duration_ms INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_journal_session ON ceo_journal(session_id);
+      CREATE INDEX IF NOT EXISTS idx_journal_created ON ceo_journal(created_at);
     `);
   }
 
@@ -197,6 +230,24 @@ export class CostTracker {
       )
       .get() as { total: number };
     return result.total;
+  }
+
+  isMonthlyLimitReached(monthlyLimit: number): boolean {
+    return monthlyLimit > 0 && this.getTotalCostThisMonth() >= monthlyLimit;
+  }
+
+  getCostHistory(days: number = 7): DailyCostSummary[] {
+    return this.db
+      .prepare(
+        `SELECT date(timestamp) as date,
+                SUM(estimated_cost_usd) as total_cost_usd,
+                COUNT(*) as entry_count
+         FROM cost_entries
+         WHERE timestamp >= datetime('now', '-' || ? || ' days')
+         GROUP BY date(timestamp)
+         ORDER BY date DESC`
+      )
+      .all(days) as DailyCostSummary[];
   }
 
   // Session management
@@ -410,6 +461,85 @@ export class CostTracker {
         `SELECT * FROM background_logs WHERE job_id = ? ORDER BY id ASC`
       )
       .all(jobId) as BackgroundLog[];
+  }
+
+  // CEO Journal methods
+
+  createJournalEntry(entry: {
+    sessionId: string;
+    directive: string;
+    summary: string;
+    deliverables?: string[];
+    totalCostUsd: number;
+    numTurns: number;
+    durationMs: number;
+  }): number {
+    const result = this.db
+      .prepare(
+        `INSERT INTO ceo_journal (session_id, directive, summary, deliverables, total_cost_usd, num_turns, duration_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        entry.sessionId,
+        entry.directive,
+        entry.summary,
+        entry.deliverables ? JSON.stringify(entry.deliverables) : null,
+        entry.totalCostUsd,
+        entry.numTurns,
+        entry.durationMs
+      );
+    return Number(result.lastInsertRowid);
+  }
+
+  getRecentJournalEntries(limit: number = 10): JournalEntry[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM ceo_journal ORDER BY created_at DESC LIMIT ?`
+      )
+      .all(limit) as JournalEntry[];
+  }
+
+  searchJournalByKeyword(keyword: string): JournalEntry[] {
+    const pattern = `%${keyword}%`;
+    return this.db
+      .prepare(
+        `SELECT * FROM ceo_journal
+         WHERE directive LIKE ? OR summary LIKE ?
+         ORDER BY created_at DESC`
+      )
+      .all(pattern, pattern) as JournalEntry[];
+  }
+
+  formatJournalForContext(entries: JournalEntry[]): string {
+    if (entries.length === 0) return "";
+
+    // Show in oldest-first order for chronological reading
+    const sorted = [...entries].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    const lines = sorted.map((entry) => {
+      const date = entry.created_at.split(" ")[0] || entry.created_at;
+      const directiveSnippet =
+        entry.directive.length > 80
+          ? entry.directive.slice(0, 80) + "..."
+          : entry.directive;
+      let block = `### ${date} — "${directiveSnippet}"\n${entry.summary}`;
+
+      if (entry.deliverables) {
+        try {
+          const files = JSON.parse(entry.deliverables) as string[];
+          if (files.length > 0) {
+            block += `\nFiles: ${files.join(", ")}`;
+          }
+        } catch { /* ignore invalid JSON */ }
+      }
+
+      block += `\nCost: $${entry.total_cost_usd.toFixed(4)} | Turns: ${entry.num_turns}`;
+      return block;
+    });
+
+    return `## Recent Session History\n\n${lines.join("\n\n")}`;
   }
 
   close(): void {

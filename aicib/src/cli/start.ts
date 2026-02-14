@@ -7,8 +7,10 @@ import { getAgentsDir, createTeamState } from "../core/team.js";
 import {
   startCEOSession,
   recordRunCosts,
-  formatMessage,
 } from "../core/agent-runner.js";
+import { formatMessageWithColor } from "../core/output-formatter.js";
+import { buildOrgTree, renderOrgChart } from "../core/org-chart.js";
+import { header, agentColor, formatUSD } from "./ui.js";
 
 interface StartOptions {
   dir: string;
@@ -17,7 +19,7 @@ interface StartOptions {
 export async function startCommand(options: StartOptions): Promise<void> {
   const projectDir = path.resolve(options.dir);
 
-  console.log(chalk.bold("\n  AI Company-in-a-Box — Starting team\n"));
+  console.log(header("Starting team"));
 
   let config;
   try {
@@ -80,18 +82,31 @@ export async function startCommand(options: StartOptions): Promise<void> {
 
     console.log(chalk.bold("  Team: ") + config.company.name);
     console.log(chalk.bold("  Session: ") + teamState.sessionId);
-    console.log(chalk.bold("  Agents:"));
 
-    for (const [role, agent] of agents) {
-      const agentConfig = config.agents[role];
-      const model = agentConfig?.model || agent.frontmatter.model;
-      console.log(
-        `    ${chalk.green("→")} ${agent.frontmatter.title} (${role}) — ${model}`
-      );
+    // Display org chart
+    try {
+      const orgTree = buildOrgTree(projectDir, config);
+      console.log();
+      const chart = renderOrgChart(orgTree);
+      for (const line of chart.split("\n")) {
+        console.log(`    ${line}`);
+      }
+      console.log();
+    } catch {
+      // Fallback to plain agent list
+      console.log(chalk.bold("  Agents:"));
+      for (const [role, agent] of agents) {
+        const agentConfig = config.agents[role];
+        const model = agentConfig?.model || agent.frontmatter.model;
+        const colorFn = agentColor(role);
+        console.log(
+          `    ${chalk.green("\u2192")} ${agent.frontmatter.title} (${colorFn(role)}) \u2014 ${model}`
+        );
+      }
     }
 
     console.log(
-      chalk.bold("\n  Cost limits: ") +
+      chalk.bold("  Cost limits: ") +
         `$${config.settings.cost_limit_daily}/day, $${config.settings.cost_limit_monthly}/month`
     );
 
@@ -99,7 +114,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
 
     // Start the CEO session using the Agent SDK
     const result = await startCEOSession(projectDir, config, (msg) => {
-      const formatted = formatMessage(msg);
+      const formatted = formatMessageWithColor(msg);
       if (formatted) {
         console.log(`  ${formatted}`);
       }
@@ -135,7 +150,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
     );
     console.log(
       chalk.dim(
-        `  Cost: $${result.totalCostUsd.toFixed(4)} | Turns: ${result.numTurns}`
+        `  Cost: ${formatUSD(result.totalCostUsd)} | Turns: ${result.numTurns}`
       )
     );
     console.log(

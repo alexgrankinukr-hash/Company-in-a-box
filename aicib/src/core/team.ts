@@ -8,6 +8,7 @@ import {
   type AgentDefinition,
 } from "./agents.js";
 import { CostTracker } from "./cost-tracker.js";
+import chalk from "chalk";
 
 export interface RunningAgent {
   role: string;
@@ -209,22 +210,37 @@ export function getTeamStatusSummary(
     for (const agent of statuses) {
       const statusIcon =
         agent.status === "running"
-          ? "●"
+          ? chalk.green("\u25CF")
           : agent.status === "idle"
-            ? "○"
+            ? chalk.yellow("\u25CB")
             : agent.status === "error"
-              ? "✗"
-              : "·";
-      output += `    ${statusIcon} ${agent.agent_role.padEnd(20)} ${agent.status.padEnd(10)}`;
+              ? chalk.red("\u2717")
+              : chalk.dim("\u00B7");
+      const roleName = chalk.hex("#FFB300")(agent.agent_role); // gold for all roles in summary
+      output += `    ${statusIcon} ${roleName.padEnd(20)} ${agent.status.padEnd(10)}`;
       if (agent.current_task) {
-        output += ` → ${agent.current_task}`;
+        output += ` \u2192 ${agent.current_task}`;
       }
       output += "\n";
     }
   }
 
-  output += `\n  Cost today:      $${todayCost.toFixed(2)} / $${config.settings.cost_limit_daily}`;
-  output += `\n  Cost this month:  $${monthCost.toFixed(2)} / $${config.settings.cost_limit_monthly}\n`;
+  // Cost color based on proximity to limit
+  const dailyCostColor =
+    todayCost >= config.settings.cost_limit_daily * 0.8
+      ? chalk.red
+      : todayCost >= config.settings.cost_limit_daily * 0.5
+        ? chalk.yellow
+        : chalk.green;
+  const monthlyCostColor =
+    monthCost >= config.settings.cost_limit_monthly * 0.8
+      ? chalk.red
+      : monthCost >= config.settings.cost_limit_monthly * 0.5
+        ? chalk.yellow
+        : chalk.green;
+
+  output += `\n  Cost today:      ${dailyCostColor(`$${todayCost.toFixed(2)}`)} / $${config.settings.cost_limit_daily}`;
+  output += `\n  Cost this month:  ${monthlyCostColor(`$${monthCost.toFixed(2)}`)} / $${config.settings.cost_limit_monthly}\n`;
 
   return output;
 }

@@ -4,6 +4,7 @@ import type {
   SDKResultMessage,
   SDKSystemMessage,
   AgentDefinition as SDKAgentDefinition,
+  ModelUsage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { loadAgentDefinitions, getTemplatePath } from "./agents.js";
 import { getAgentsDir } from "./team.js";
@@ -63,6 +64,7 @@ export interface SessionResult {
   outputTokens: number;
   numTurns: number;
   durationMs: number;
+  modelUsage?: Record<string, ModelUsage>;
 }
 
 /**
@@ -135,12 +137,33 @@ export async function startCEOSession(
     .map(([role, def]) => `- **${role}**: ${def.description}`)
     .join("\n");
 
+  // Load recent journal entries for CEO memory
+  let journalBlock = "";
+  try {
+    const journalTracker = new CostTracker(projectDir);
+    const entries = journalTracker.getRecentJournalEntries(10);
+    if (entries.length > 0) {
+      const formatted = journalTracker.formatJournalForContext(entries);
+      // Token safety: if too long (~6000 chars ≈ 3000 tokens), trim to 5 entries
+      if (formatted.length > 6000) {
+        const trimmed = journalTracker.formatJournalForContext(entries.slice(0, 5));
+        journalBlock = `\n\n${trimmed}`;
+      } else {
+        journalBlock = `\n\n${formatted}`;
+      }
+    }
+    journalTracker.close();
+  } catch {
+    // Journal loading is best-effort
+  }
+
   const ceoAppendPrompt = `${ceoAgent.content}
 
 ## Your Team (Available via Task tool)
 
 You have the following department heads. Delegate work to them using the Task tool:
 ${teamDescription}
+${journalBlock}
 
 ## Company: ${config.company.name}
 ## Cost Limits: $${config.settings.cost_limit_daily}/day, $${config.settings.cost_limit_monthly}/month
@@ -204,6 +227,7 @@ Keep it concise — 3-5 sentences max.`;
         outputTokens: resultMsg.usage.output_tokens,
         numTurns: resultMsg.num_turns,
         durationMs: resultMsg.duration_ms,
+        modelUsage: resultMsg.modelUsage,
       };
     }
   }
@@ -286,6 +310,7 @@ Process this directive according to your CEO role. Decompose into department-lev
         outputTokens: resultMsg.usage.output_tokens,
         numTurns: resultMsg.num_turns,
         durationMs: resultMsg.duration_ms,
+        modelUsage: resultMsg.modelUsage,
       };
     }
   }
@@ -294,7 +319,68 @@ Process this directive according to your CEO role. Decompose into department-lev
 }
 
 /**
+ * Generates a journal entry by sending a summarization prompt to the resumed
+ * CEO session. Uses Haiku model to keep cost under $0.01 per summary.
+ */
+export async function generateJournalEntry(
+  sdkSessionId: string,
+  directive: string,
+  result: SessionResult,
+  projectDir: string,
+  costTracker: CostTracker,
+  sessionId: string
+): Promise<void> {
+  const summaryPrompt = `Generate a concise journal entry (3-5 sentences) covering: what was requested, how you delegated, key decisions, what was produced, and context for future sessions. Reply with ONLY the summary text, no formatting or preamble.`;
+
+  let summaryText = "";
+
+  try {
+    const queryStream = query({
+      prompt: summaryPrompt,
+      options: {
+        resume: sdkSessionId,
+        model: "haiku",
+        cwd: projectDir,
+        tools: [],
+        permissionMode: "bypassPermissions",
+        allowDangerouslySkipPermissions: true,
+        maxBudgetUsd: 0.05,
+      },
+    });
+
+    for await (const message of queryStream) {
+      if (message.type === "assistant") {
+        const content = message.message?.content;
+        if (content) {
+          for (const block of content) {
+            if ("text" in block && block.text) {
+              summaryText += block.text;
+            }
+          }
+        }
+      }
+    }
+
+    if (summaryText.trim()) {
+      costTracker.createJournalEntry({
+        sessionId,
+        directive,
+        summary: summaryText.trim(),
+        totalCostUsd: result.totalCostUsd,
+        numTurns: result.numTurns,
+        durationMs: result.durationMs,
+      });
+    }
+  } catch (error) {
+    // Journal generation is best-effort — don't break the main flow
+    console.warn("  Warning: Journal entry generation failed:", error instanceof Error ? error.message : String(error));
+  }
+}
+
+/**
  * Records run costs from a SessionResult into the cost tracker database.
+ * If modelUsage is available, records one entry per model (e.g., ceo-opus, ceo-sonnet).
+ * Falls back to a single entry if modelUsage is empty or undefined.
  */
 export function recordRunCosts(
   result: SessionResult,
@@ -303,6 +389,28 @@ export function recordRunCosts(
   agentRole: string = "ceo",
   model: string = "opus"
 ): void {
+  // Per-model breakdown when SDK provides modelUsage
+  if (result.modelUsage && Object.keys(result.modelUsage).length > 0) {
+    for (const [modelId, usage] of Object.entries(result.modelUsage)) {
+      // Extract short model name: "claude-opus-4-..." → "opus", "claude-sonnet-4-5-..." → "sonnet"
+      let shortModel = model; // fallback
+      if (modelId.includes("opus")) shortModel = "opus";
+      else if (modelId.includes("sonnet")) shortModel = "sonnet";
+      else if (modelId.includes("haiku")) shortModel = "haiku";
+
+      const label = `${agentRole}-${shortModel}`;
+      costTracker.recordCost(
+        label,
+        sessionId,
+        shortModel,
+        usage.inputTokens,
+        usage.outputTokens
+      );
+    }
+    return;
+  }
+
+  // Fallback: single entry
   costTracker.recordCost(
     agentRole,
     sessionId,
@@ -316,7 +424,7 @@ export function recordRunCosts(
  * Formats an SDK message for terminal display. Returns null for messages
  * that shouldn't be displayed (tool progress, replays, etc.)
  */
-export function formatMessage(message: SDKMessage): string | null {
+export function formatMessagePlain(message: SDKMessage): string | null {
   if (message.type === "assistant") {
     const content = message.message?.content;
     if (!content) return null;

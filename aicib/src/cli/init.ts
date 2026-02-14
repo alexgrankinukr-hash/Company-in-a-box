@@ -139,13 +139,23 @@ export async function initCommand(options: InitOptions): Promise<void> {
       }
     }
 
-    console.log(chalk.bold("\n  Next steps:"));
-    console.log(`    1. Review agents in ${chalk.cyan(".claude/agents/")}`);
-    console.log(`    2. Edit ${chalk.cyan("aicib.config.yaml")} to customize`);
-    console.log(`    3. Run ${chalk.cyan("aicib start")} to launch the team`);
-    console.log(
-      `    4. Run ${chalk.cyan('aicib brief "your directive"')} to give the CEO a task\n`
-    );
+    // Org chart
+    console.log(chalk.bold("\n  Your AI Company:\n"));
+    console.log(`    \u{1F464} You (Human Founder)`);
+    console.log(`     \u2514\u2500\u2500 \u{1F3E2} ${chalk.bold.white("CEO")} (Team Lead)`);
+    console.log(`           \u251C\u2500\u2500 ${chalk.cyan("CTO")} \u2500\u2500 ${chalk.dim("Backend Engineer, Frontend Engineer")}`);
+    console.log(`           \u251C\u2500\u2500 ${chalk.green("CFO")} \u2500\u2500 ${chalk.dim("Financial Analyst")}`);
+    console.log(`           \u2514\u2500\u2500 ${chalk.magenta("CMO")} \u2500\u2500 ${chalk.dim("Content Writer")}`);
+
+    // Guided first experience
+    console.log(chalk.bold("\n  \u{1F680} Try your first brief:\n"));
+    console.log(`    ${chalk.cyan("aicib start")}`);
+    console.log(`    ${chalk.cyan(`aicib brief "Build a landing page for ${name}. Target: early adopters. MVP scope. Budget: $500/mo."`)}`);
+    console.log(chalk.bold("\n  \u{1F4A1} Tips:"));
+    console.log(chalk.dim("    \u2022 Each brief costs ~$0.50\u2013$3.00 depending on complexity"));
+    console.log(chalk.dim("    \u2022 Set spending limits in aicib.config.yaml (current: $50/day, $500/month)"));
+    console.log(chalk.dim(`    \u2022 Run ${chalk.cyan("aicib brief --background \"...\"")} to work while the team runs`));
+    console.log(chalk.dim(`    \u2022 Check on progress anytime with ${chalk.cyan("aicib status")}\n`));
   } catch (error) {
     spinner.fail("  Initialization failed");
     console.error(

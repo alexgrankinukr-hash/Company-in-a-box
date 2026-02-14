@@ -5,12 +5,14 @@ import { CostTracker } from "../core/cost-tracker.js";
 import {
   sendBrief,
   recordRunCosts,
-  formatMessage,
+  generateJournalEntry,
 } from "../core/agent-runner.js";
+import { formatMessageWithColor } from "../core/output-formatter.js";
 import {
   startBackgroundBrief,
   isProcessRunning,
 } from "../core/background-manager.js";
+import { header, formatUSD, costColor, formatPercent } from "./ui.js";
 
 interface BriefOptions {
   dir: string;
@@ -35,7 +37,7 @@ export async function briefCommand(
     process.exit(1);
   }
 
-  console.log(chalk.bold("\n  AI Company-in-a-Box — Briefing CEO\n"));
+  console.log(header("Briefing CEO"));
   console.log(chalk.dim(`  Company: ${config.company.name}`));
   console.log(chalk.dim(`  Directive: "${directive}"\n`));
 
@@ -57,7 +59,7 @@ export async function briefCommand(
 
     // Check daily cost limit before proceeding
     const todayCost = costTracker.getTotalCostToday();
-    if (todayCost >= config.settings.cost_limit_daily) {
+    if (config.settings.cost_limit_daily > 0 && todayCost >= config.settings.cost_limit_daily) {
       console.error(
         chalk.red(
           `  Error: Daily cost limit reached ($${todayCost.toFixed(2)} / $${config.settings.cost_limit_daily})`
@@ -70,6 +72,49 @@ export async function briefCommand(
       );
       costTracker.close();
       process.exit(1);
+    }
+
+    // Check monthly cost limit before proceeding
+    const monthCost = costTracker.getTotalCostThisMonth();
+    if (config.settings.cost_limit_monthly > 0 && monthCost >= config.settings.cost_limit_monthly) {
+      console.error(
+        chalk.red(
+          `  Error: Monthly cost limit reached (${formatUSD(monthCost, 2)} / $${config.settings.cost_limit_monthly})`
+        )
+      );
+      console.error(
+        chalk.yellow(
+          "  Increase the monthly limit in aicib.config.yaml or wait until next month.\n"
+        )
+      );
+      costTracker.close();
+      process.exit(1);
+    }
+
+    // Budget proximity warnings (not hard stops — just heads-up)
+    const dailyRatio = config.settings.cost_limit_daily > 0
+      ? todayCost / config.settings.cost_limit_daily
+      : 0;
+    const monthlyRatio = config.settings.cost_limit_monthly > 0
+      ? monthCost / config.settings.cost_limit_monthly
+      : 0;
+
+    if (dailyRatio >= 0.8) {
+      console.log(
+        costColor(todayCost, config.settings.cost_limit_daily)(
+          `  Warning: ${formatPercent(todayCost, config.settings.cost_limit_daily)} of daily budget used (${formatUSD(todayCost, 2)} / $${config.settings.cost_limit_daily})`
+        )
+      );
+    }
+    if (monthlyRatio >= 0.8) {
+      console.log(
+        costColor(monthCost, config.settings.cost_limit_monthly)(
+          `  Warning: ${formatPercent(monthCost, config.settings.cost_limit_monthly)} of monthly budget used (${formatUSD(monthCost, 2)} / $${config.settings.cost_limit_monthly})`
+        )
+      );
+    }
+    if (dailyRatio >= 0.8 || monthlyRatio >= 0.8) {
+      console.log();
     }
 
     // Check for already-running background job
@@ -140,7 +185,7 @@ export async function briefCommand(
         projectDir,
         config,
         (msg) => {
-          const formatted = formatMessage(msg);
+          const formatted = formatMessageWithColor(msg);
           if (formatted) {
             console.log(`  ${formatted}`);
           }
@@ -156,9 +201,19 @@ export async function briefCommand(
         config.agents.ceo?.model || "opus"
       );
 
+      // Generate journal entry (best-effort, uses Haiku)
+      await generateJournalEntry(
+        activeSession.sdkSessionId,
+        directive,
+        result,
+        projectDir,
+        costTracker,
+        activeSession.sessionId
+      );
+
       console.log(
         chalk.dim(
-          `\n  Cost: $${result.totalCostUsd.toFixed(4)} | Turns: ${result.numTurns} | Duration: ${(result.durationMs / 1000).toFixed(1)}s\n`
+          `\n  Cost: ${formatUSD(result.totalCostUsd)} | Turns: ${result.numTurns} | Duration: ${(result.durationMs / 1000).toFixed(1)}s\n`
         )
       );
     }

@@ -4,21 +4,17 @@ import { loadConfig, listAllAgents } from "../core/config.js";
 import { CostTracker } from "../core/cost-tracker.js";
 import { getTeamStatusSummary } from "../core/team.js";
 import { isProcessRunning } from "../core/background-manager.js";
+import { buildOrgTree, renderOrgChart } from "../core/org-chart.js";
+import {
+  header,
+  createTable,
+  agentColor,
+  formatTimeAgo,
+  formatUSD,
+} from "./ui.js";
 
 interface StatusOptions {
   dir: string;
-}
-
-function formatTimeAgo(timestamp: string): string {
-  const diff = Date.now() - new Date(timestamp).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 export async function statusCommand(options: StatusOptions): Promise<void> {
@@ -36,7 +32,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     process.exit(1);
   }
 
-  console.log(chalk.bold("\n  AI Company-in-a-Box — Status\n"));
+  console.log(header("Status"));
 
   try {
     const costTracker = new CostTracker(projectDir);
@@ -52,6 +48,18 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           chalk.dim(` (${activeSDKSession.sdkSessionId})`)
       );
       console.log();
+
+      // Show org chart
+      try {
+        const orgTree = buildOrgTree(projectDir, config);
+        const chart = renderOrgChart(orgTree);
+        for (const line of chart.split("\n")) {
+          console.log(`    ${line}`);
+        }
+        console.log();
+      } catch {
+        // Org chart is best-effort
+      }
 
       // Show background job status
       const activeJob = costTracker.getActiveBackgroundJob(
@@ -116,7 +124,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
             );
             console.log(
               chalk.dim(
-                `    Cost: $${lastJob.total_cost_usd.toFixed(4)} | Turns: ${lastJob.num_turns} | ${formatTimeAgo(lastJob.completed_at!)}`
+                `    Cost: ${formatUSD(lastJob.total_cost_usd)} | Turns: ${lastJob.num_turns} | ${formatTimeAgo(lastJob.completed_at!)}`
               )
             );
           } else if (lastJob.status === "failed") {
@@ -140,22 +148,31 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       }
     }
 
-    // Show configured agents
+    // Show configured agents in a table
     const allAgents = listAllAgents(config);
-    console.log(chalk.bold("  Configured agents:"));
+    const agentTable = createTable(
+      ["Agent", "Model", "Status", "Department"],
+      [22, 10, 10, 16]
+    );
 
     for (const agent of allAgents) {
+      const colorFn = agentColor(agent.role);
       const enabledStr = agent.enabled
         ? chalk.green("enabled")
         : chalk.red("disabled");
       const dept =
         agent.department !== agent.role
-          ? chalk.dim(` (${agent.department} dept)`)
+          ? agent.department
           : "";
-      console.log(
-        `    ${agent.role.padEnd(22)} ${agent.model.padEnd(8)} ${enabledStr}${dept}`
-      );
+      agentTable.push([
+        colorFn(agent.role),
+        agent.model,
+        enabledStr,
+        dept,
+      ]);
     }
+
+    console.log(agentTable.toString());
     console.log();
 
     costTracker.close();
@@ -164,16 +181,25 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     const allAgents = listAllAgents(config);
     console.log(`  Company: ${config.company.name}`);
     console.log(`  Template: ${config.company.template}\n`);
-    console.log(chalk.bold("  Configured agents:"));
+
+    const agentTable = createTable(
+      ["Agent", "Model", "Status"],
+      [22, 10, 10]
+    );
 
     for (const agent of allAgents) {
+      const colorFn = agentColor(agent.role);
       const enabledStr = agent.enabled
         ? chalk.green("enabled")
         : chalk.red("disabled");
-      console.log(
-        `    ${agent.role.padEnd(22)} ${agent.model.padEnd(8)} ${enabledStr}`
-      );
+      agentTable.push([
+        colorFn(agent.role),
+        agent.model,
+        enabledStr,
+      ]);
     }
+
+    console.log(agentTable.toString());
 
     console.log(
       chalk.yellow("\n  No active session. Run 'aicib start' to launch.\n")

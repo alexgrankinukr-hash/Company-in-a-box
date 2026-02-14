@@ -11,6 +11,7 @@ import { logsCommand } from "./cli/logs.js";
 import { addAgentCommand } from "./cli/add-agent.js";
 import { removeAgentCommand } from "./cli/remove-agent.js";
 import { configCommand } from "./cli/config.js";
+import { journalCommand } from "./cli/journal.js";
 
 const program = new Command();
 
@@ -59,6 +60,7 @@ program
   .description("Show cost breakdown per agent")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .option("-s, --session <sessionId>", "Filter by session ID")
+  .option("--history", "Show daily cost history for the last 7 days")
   .action(costCommand);
 
 program
@@ -86,6 +88,14 @@ program
   .description("Remove an agent")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(removeAgentCommand);
+
+program
+  .command("journal")
+  .description("View CEO session history and journal entries")
+  .option("--search <keyword>", "Search entries by keyword")
+  .option("--limit <n>", "Number of entries to show (default: 10)")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(journalCommand);
 
 program
   .command("config")

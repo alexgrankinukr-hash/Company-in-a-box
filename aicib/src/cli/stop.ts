@@ -1,8 +1,15 @@
 import path from "node:path";
 import chalk from "chalk";
+import ora from "ora";
 import { loadConfig } from "../core/config.js";
 import { CostTracker } from "../core/cost-tracker.js";
 import { killBackgroundJob } from "../core/background-manager.js";
+import {
+  header,
+  createTable,
+  agentColor,
+  formatUSD,
+} from "./ui.js";
 
 interface StopOptions {
   dir: string;
@@ -23,14 +30,16 @@ export async function stopCommand(options: StopOptions): Promise<void> {
     process.exit(1);
   }
 
-  console.log(chalk.bold("\n  AI Company-in-a-Box — Stopping team\n"));
+  console.log(header("Stopping team"));
+
+  const spinner = ora("  Shutting down...").start();
 
   try {
     const costTracker = new CostTracker(projectDir);
     const activeSession = costTracker.getActiveSession();
 
     if (!activeSession) {
-      console.log(chalk.yellow("  No active session found.\n"));
+      spinner.info("  No active session found.\n");
       costTracker.close();
       return;
     }
@@ -38,14 +47,12 @@ export async function stopCommand(options: StopOptions): Promise<void> {
     // Kill any running background job first
     const activeJob = costTracker.getActiveBackgroundJob(activeSession);
     if (activeJob) {
-      console.log(
-        chalk.yellow(`  Stopping background job #${activeJob.id}...`)
-      );
+      spinner.text = `  Stopping background job #${activeJob.id}...`;
       killBackgroundJob(activeJob, costTracker, "Stopped by user");
-      console.log(chalk.green("  Background worker terminated."));
     }
 
     // Mark all agents as stopped
+    spinner.text = "  Marking agents as stopped...";
     const statuses = costTracker.getAgentStatuses();
     for (const agent of statuses) {
       costTracker.setAgentStatus(agent.agent_role, "stopped");
@@ -57,29 +64,43 @@ export async function stopCommand(options: StopOptions): Promise<void> {
     // End the session
     costTracker.endSession(activeSession);
 
+    spinner.succeed("  Team stopped successfully.\n");
+
     console.log(`  Session ${chalk.dim(activeSession)} ended.`);
     console.log(
       chalk.green("  All agents marked as stopped.\n")
     );
 
-    // Show final cost summary
+    // Show final cost summary in a table
     const costs = costTracker.getCostByAgent(activeSession);
     if (costs.length > 0) {
-      console.log(chalk.bold("  Final cost breakdown:"));
+      const table = createTable(
+        ["Agent", "Cost (USD)"],
+        [22, 14]
+      );
+
       let total = 0;
       for (const cost of costs) {
-        console.log(
-          `    ${cost.role.padEnd(22)} $${cost.total_cost_usd.toFixed(4)}`
-        );
+        const colorFn = agentColor(cost.role);
+        table.push([
+          colorFn(cost.role),
+          formatUSD(cost.total_cost_usd),
+        ]);
         total += cost.total_cost_usd;
       }
-      console.log(
-        `    ${"─".repeat(30)}\n    ${"Total".padEnd(22)} $${total.toFixed(4)}\n`
-      );
+
+      table.push([
+        chalk.bold("Total"),
+        chalk.bold(formatUSD(total)),
+      ]);
+
+      console.log(table.toString());
+      console.log();
     }
 
     costTracker.close();
   } catch (error) {
+    spinner.fail("  Failed to stop team");
     console.error(
       chalk.red(
         `  Error: ${error instanceof Error ? error.message : String(error)}\n`

@@ -13,7 +13,7 @@
 
 import { loadConfig } from "./config.js";
 import { CostTracker } from "./cost-tracker.js";
-import { sendBrief, recordRunCosts, formatMessage } from "./agent-runner.js";
+import { sendBrief, recordRunCosts, generateJournalEntry, formatMessagePlain } from "./agent-runner.js";
 
 async function main(): Promise<void> {
   const [, , jobIdStr, projectDir, sdkSessionId] = process.argv;
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
       config,
       (msg) => {
         // Write every displayable message to the background_logs table
-        const formatted = formatMessage(msg);
+        const formatted = formatMessagePlain(msg);
         if (formatted) {
           // Determine agent role from the message
           let role = "system";
@@ -86,8 +86,28 @@ async function main(): Promise<void> {
       config.agents.ceo?.model || "opus"
     );
 
-    // Build a short summary from the last assistant message
+    // Generate journal entry (best-effort)
     const durationMs = Date.now() - startTime;
+    try {
+      await generateJournalEntry(
+        sdkSessionId,
+        directive,
+        result,
+        projectDir,
+        costTracker,
+        job.session_id
+      );
+      costTracker.logBackgroundMessage(
+        jobId,
+        "info",
+        "system",
+        "[JOURNAL] Session summary saved"
+      );
+    } catch {
+      // Journal generation is best-effort
+      costTracker.logBackgroundMessage(jobId, "warning", "system", "[JOURNAL] Failed to generate summary");
+    }
+
     costTracker.updateBackgroundJob(jobId, {
       status: "completed",
       completed_at: new Date().toISOString(),
