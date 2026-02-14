@@ -46,7 +46,9 @@ function loadPersonaFromConfig(
       try {
         overrides.set(role, loadPreset(templateDir, overridePresetName));
       } catch {
-        // Skip invalid overrides
+        console.warn(
+          `  Warning: Persona override for "${role}" ("${overridePresetName}") could not be loaded. Skipping.`
+        );
       }
     }
   }
@@ -69,10 +71,11 @@ export interface SessionResult {
  */
 export function buildSubagentMap(
   projectDir: string,
-  config: AicibConfig
+  config: AicibConfig,
+  preloaded?: { preset?: PersonaOverlay; overrides?: Map<string, PersonaOverlay> }
 ): Record<string, SDKAgentDefinition> {
   const agentsDir = getAgentsDir(projectDir);
-  const { preset, overrides } = loadPersonaFromConfig(config);
+  const { preset, overrides } = preloaded || loadPersonaFromConfig(config);
   const agents = loadAgentDefinitions(agentsDir, preset, overrides);
   const subagents: Record<string, SDKAgentDefinition> = {};
 
@@ -116,15 +119,15 @@ export async function startCEOSession(
   onMessage?: (msg: SDKMessage) => void
 ): Promise<SessionResult> {
   const agentsDir = getAgentsDir(projectDir);
-  const { preset, overrides } = loadPersonaFromConfig(config);
-  const agents = loadAgentDefinitions(agentsDir, preset, overrides);
+  const personaData = loadPersonaFromConfig(config);
+  const agents = loadAgentDefinitions(agentsDir, personaData.preset, personaData.overrides);
   const ceoAgent = agents.get("ceo");
 
   if (!ceoAgent) {
     throw new Error("CEO agent definition not found. Run 'aicib init' first.");
   }
 
-  const subagents = buildSubagentMap(projectDir, config);
+  const subagents = buildSubagentMap(projectDir, config, personaData);
   const ceoModel = config.agents.ceo?.model || ceoAgent.frontmatter.model;
 
   // Build the team description for the CEO's system prompt
@@ -219,15 +222,15 @@ export async function sendBrief(
   onMessage?: (msg: SDKMessage) => void
 ): Promise<SessionResult> {
   const agentsDir = getAgentsDir(projectDir);
-  const { preset, overrides } = loadPersonaFromConfig(config);
-  const agents = loadAgentDefinitions(agentsDir, preset, overrides);
+  const personaData = loadPersonaFromConfig(config);
+  const agents = loadAgentDefinitions(agentsDir, personaData.preset, personaData.overrides);
   const ceoAgent = agents.get("ceo");
 
   if (!ceoAgent) {
     throw new Error("CEO agent definition not found.");
   }
 
-  const subagents = buildSubagentMap(projectDir, config);
+  const subagents = buildSubagentMap(projectDir, config, personaData);
   const ceoModel = config.agents.ceo?.model || ceoAgent.frontmatter.model;
 
   const briefPrompt = `DIRECTIVE FROM HUMAN FOUNDER:

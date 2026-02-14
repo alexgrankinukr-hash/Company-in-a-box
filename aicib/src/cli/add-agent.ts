@@ -7,9 +7,7 @@ import {
   type ModelName,
 } from "../core/config.js";
 import { ensureAgentsDir } from "../core/team.js";
-import { getTemplatePath } from "../core/agents.js";
 import {
-  loadPreset,
   validateAgentPersona,
   type PersonaPreset,
 } from "../core/persona.js";
@@ -121,22 +119,7 @@ export async function addAgentCommand(options: AddAgentOptions): Promise<void> {
   const deptName = deptNames[department] || department;
   const deptHead = deptTitles[department] || department.toUpperCase();
 
-  // Load active preset for richer persona generation
-  let presetSection = "";
   const presetName = (config.persona?.preset || "professional") as PersonaPreset;
-  try {
-    const templateDir = getTemplatePath(config.company.template);
-    const preset = loadPreset(templateDir, presetName);
-    if (preset.content) {
-      presetSection = `
-## Communication Style (${preset.displayName} preset)
-
-${preset.content}
-`;
-    }
-  } catch {
-    // Preset not available — continue without it
-  }
 
   const agentContent = `---
 role: ${normalizedRole}
@@ -192,7 +175,7 @@ You receive task assignments from your department head and execute them with foc
 - Build incrementally — get the core working, then refine
 - Keep changes focused to your assigned task — don't touch unrelated code
 - Return clear, structured results: what was done, files changed, open questions
-${presetSection}`;
+`;
 
   fs.writeFileSync(agentFilePath, agentContent, "utf-8");
 

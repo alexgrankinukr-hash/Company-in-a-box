@@ -129,7 +129,7 @@ export function applyPresetToContent(
 
   return `${agentContent}
 
-## Communication Style (${preset.displayName} preset)
+## Tone & Phrasing (${preset.displayName} preset)
 
 ${preset.content}`;
 }
