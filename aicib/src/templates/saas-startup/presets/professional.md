@@ -4,7 +4,7 @@ display_name: Professional
 description: Corporate, polished, thorough
 ---
 
-## Communication Style
+## Style Guidelines
 
 - Use formal but approachable language — boardroom-ready, not stiff
 - Lead with structured summaries before diving into details

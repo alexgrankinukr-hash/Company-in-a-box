@@ -12,6 +12,7 @@ import { CostTracker } from "./cost-tracker.js";
 import type { AicibConfig } from "./config.js";
 import type { PersonaOverlay } from "./persona.js";
 import { loadPreset } from "./persona.js";
+import chalk from "chalk";
 
 // Tools from soul.md that don't exist in the SDK — filter these out
 const EXCLUDED_TOOLS = new Set(["SendMessage", "TeamCreate"]);
@@ -29,14 +30,17 @@ function loadPersonaFromConfig(
   let preset: PersonaOverlay | undefined;
   try {
     preset = loadPreset(templateDir, presetName);
-  } catch {
+  } catch (err) {
     // Preset file missing or invalid — warn but don't block execution.
     // This keeps backward compatibility with old templates that lack presets.
+    const detail = err instanceof Error ? err.message : String(err);
     if (presetName !== "professional") {
       // Only warn if user explicitly chose a non-default preset
       console.warn(
-        `  Warning: Persona preset "${presetName}" could not be loaded. Agents will run without personality overlay.`
+        `  Warning: Persona preset "${presetName}" could not be loaded (${detail}). Agents will run without personality overlay.`
       );
+    } else {
+      console.warn(chalk.dim("  Note: No persona preset loaded. Agents running with base personalities only."));
     }
   }
 
@@ -46,9 +50,10 @@ function loadPersonaFromConfig(
     for (const [role, overridePresetName] of Object.entries(config.persona.overrides)) {
       try {
         overrides.set(role, loadPreset(templateDir, overridePresetName));
-      } catch {
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
         console.warn(
-          `  Warning: Persona override for "${role}" ("${overridePresetName}") could not be loaded. Skipping.`
+          `  Warning: Persona override for "${role}" ("${overridePresetName}") could not be loaded (${detail}). Skipping.`
         );
       }
     }
@@ -74,11 +79,25 @@ export interface SessionResult {
 export function buildSubagentMap(
   projectDir: string,
   config: AicibConfig,
+  // preloaded avoids double-parsing when caller already loaded persona data
   preloaded?: { preset?: PersonaOverlay; overrides?: Map<string, PersonaOverlay> }
 ): Record<string, SDKAgentDefinition> {
   const agentsDir = getAgentsDir(projectDir);
   const { preset, overrides } = preloaded || loadPersonaFromConfig(config);
   const agents = loadAgentDefinitions(agentsDir, preset, overrides);
+
+  // Warn for override keys that don't match any loaded agent role (catches typos in config)
+  if (overrides && overrides.size > 0) {
+    const agentRoles = new Set(agents.keys());
+    for (const key of overrides.keys()) {
+      if (!agentRoles.has(key)) {
+        console.warn(
+          `  Warning: Persona override key "${key}" does not match any agent role. Check spelling in config.`
+        );
+      }
+    }
+  }
+
   const subagents: Record<string, SDKAgentDefinition> = {};
 
   for (const [role, agent] of agents) {

@@ -16,6 +16,7 @@ export interface OrgNode {
  */
 export function buildOrgTree(projectDir: string, config: AicibConfig): OrgNode {
   const agentsDir = getAgentsDir(projectDir);
+  // Metadata only — persona overlay not needed
   const agents = loadAgentDefinitions(agentsDir);
 
   const ceoAgent = agents.get("ceo");

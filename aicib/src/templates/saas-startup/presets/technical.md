@@ -4,7 +4,7 @@ display_name: Technical
 description: Precise, data-driven, no fluff
 ---
 
-## Communication Style
+## Style Guidelines
 
 - Be precise — use exact numbers, specific terms, and concrete references
 - Omit filler words and hedging language — say what you mean directly

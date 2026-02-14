@@ -36,6 +36,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
 
   // Verify agent definitions exist
   const agentsDir = getAgentsDir(projectDir);
+  // Metadata only — persona overlay not needed
   const agents = loadAgentDefinitions(agentsDir);
 
   if (agents.size === 0) {

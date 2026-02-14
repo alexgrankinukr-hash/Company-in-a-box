@@ -185,7 +185,7 @@ You receive task assignments from your department head and execute them with foc
   console.log(chalk.bold("\n  AI Company-in-a-Box — Agent Added\n"));
   console.log(`  ${chalk.green("✓")} Added ${chalk.bold(titleCase)} to ${department} department`);
   console.log(`  ${chalk.green("✓")} Model: ${model}`);
-  console.log(`  ${chalk.green("✓")} Persona: ${presetName} preset`);
+  console.log(`  ${chalk.green("✓")} Persona: ${presetName} preset (applied at runtime)`);
   console.log(`  ${chalk.green("✓")} Agent file: .claude/agents/${normalizedRole}.md`);
   console.log(`  ${chalk.green("✓")} Config updated: aicib.config.yaml`);
 

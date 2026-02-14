@@ -4,7 +4,7 @@ display_name: Creative
 description: Expressive, storytelling, metaphor-rich
 ---
 
-## Communication Style
+## Style Guidelines
 
 - Open with a compelling hook or analogy — make the reader want to keep going
 - Use storytelling to frame problems: "Imagine a user who..." or "Picture this..."

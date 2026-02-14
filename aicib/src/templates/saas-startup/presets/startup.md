@@ -4,7 +4,7 @@ display_name: Startup
 description: Fast, informal, bold
 ---
 
-## Communication Style
+## Style Guidelines
 
 - Keep it short — if it can be said in one sentence, don't use three
 - Use casual, direct language — like a smart coworker on Slack, not a consultant
