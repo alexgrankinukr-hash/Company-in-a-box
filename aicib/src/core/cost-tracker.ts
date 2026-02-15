@@ -62,6 +62,36 @@ export interface JournalEntry {
   created_at: string;
 }
 
+// --- Table Registry ---
+// Features register their own database tables here.
+// Tables are created during CostTracker.init() after the core tables.
+
+export interface TableDefinition {
+  name: string;
+  createSQL: string;
+  indexes?: string[];
+}
+
+const tableRegistry: TableDefinition[] = [];
+
+/**
+ * Register a database table to be created during CostTracker initialization.
+ * Call this at module load time (top-level), before any CostTracker is instantiated.
+ *
+ * Example:
+ *   registerTable({
+ *     name: 'tasks',
+ *     createSQL: 'CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, ...)',
+ *     indexes: ['CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)'],
+ *   });
+ */
+export function registerTable(def: TableDefinition): void {
+  if (tableRegistry.some((t) => t.name === def.name)) {
+    throw new Error(`Table "${def.name}" is already registered`);
+  }
+  tableRegistry.push(def);
+}
+
 // Approximate costs per million tokens (USD) — Updated Feb 2026
 // See: https://platform.claude.com/docs/en/about-claude/pricing
 const COST_PER_MILLION: Record<string, { input: number; output: number }> = {
@@ -166,6 +196,16 @@ export class CostTracker {
       CREATE INDEX IF NOT EXISTS idx_journal_session ON ceo_journal(session_id);
       CREATE INDEX IF NOT EXISTS idx_journal_created ON ceo_journal(created_at);
     `);
+
+    // Create tables registered by extensions/features
+    for (const tableDef of tableRegistry) {
+      this.db.exec(tableDef.createSQL);
+      if (tableDef.indexes) {
+        for (const idx of tableDef.indexes) {
+          this.db.exec(idx);
+        }
+      }
+    }
   }
 
   recordCost(

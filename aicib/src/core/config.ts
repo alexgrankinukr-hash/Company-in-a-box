@@ -37,6 +37,7 @@ export interface AicibConfig {
   agents: Record<string, AgentConfig>;
   settings: SettingsConfig;
   persona?: PersonaConfig;
+  extensions: Record<string, unknown>;
 }
 
 const DEFAULT_SETTINGS: SettingsConfig = {
@@ -48,6 +49,52 @@ const DEFAULT_SETTINGS: SettingsConfig = {
 
 const VALID_MODELS: ModelName[] = ["opus", "sonnet", "haiku"];
 const VALID_THRESHOLDS: EscalationThreshold[] = ["low", "medium", "high"];
+
+// --- Config Extension Registry ---
+// Features register their own config sections here.
+// Extensions are validated and populated with defaults during config loading.
+
+export interface ConfigExtension {
+  /** Top-level key in the YAML config (e.g., "autonomy", "tasks") */
+  key: string;
+  /** Default values when the section is absent from the YAML file */
+  defaults: Record<string, unknown>;
+  /** Optional validator — returns an array of error messages (empty = valid) */
+  validate?: (raw: unknown) => string[];
+}
+
+const configExtensions: ConfigExtension[] = [];
+
+const RESERVED_CONFIG_KEYS = new Set(["company", "agents", "settings", "persona"]);
+
+/**
+ * Register a config extension so that a feature's config section is
+ * automatically validated and populated with defaults during loadConfig().
+ *
+ * Example:
+ *   registerConfigExtension({
+ *     key: 'autonomy',
+ *     defaults: { enabled: true, level: 'medium' },
+ *     validate: (raw) => {
+ *       const errors: string[] = [];
+ *       if (raw && typeof raw === 'object' && 'level' in raw) {
+ *         if (!['low','medium','high'].includes((raw as any).level)) {
+ *           errors.push('autonomy.level must be low, medium, or high');
+ *         }
+ *       }
+ *       return errors;
+ *     },
+ *   });
+ */
+export function registerConfigExtension(ext: ConfigExtension): void {
+  if (RESERVED_CONFIG_KEYS.has(ext.key)) {
+    throw new Error(`Config extension key "${ext.key}" is reserved`);
+  }
+  if (configExtensions.some((e) => e.key === ext.key)) {
+    throw new Error(`Config extension key "${ext.key}" is already registered`);
+  }
+  configExtensions.push(ext);
+}
 
 export function getConfigPath(projectDir: string): string {
   return path.join(projectDir, "aicib.config.yaml");
@@ -74,7 +121,17 @@ export function loadConfig(projectDir: string): AicibConfig {
 
 export function saveConfig(projectDir: string, config: AicibConfig): void {
   const configPath = getConfigPath(projectDir);
-  const yamlStr = yaml.dump(config, {
+
+  // Flatten extensions to top-level YAML keys (so the YAML reads naturally)
+  const { extensions, ...coreConfig } = config;
+  const toSave: Record<string, unknown> = { ...coreConfig };
+  if (extensions) {
+    for (const [key, value] of Object.entries(extensions)) {
+      toSave[key] = value;
+    }
+  }
+
+  const yamlStr = yaml.dump(toSave, {
     indent: 2,
     lineWidth: 120,
     noRefs: true,
@@ -197,6 +254,28 @@ export function validateConfig(raw: Record<string, unknown>): AicibConfig {
     }
   }
 
+  // Validate and populate registered config extensions
+  const extensions: Record<string, unknown> = {};
+  for (const ext of configExtensions) {
+    if (raw[ext.key] !== undefined) {
+      if (ext.validate) {
+        const extErrors = ext.validate(raw[ext.key]);
+        errors.push(...extErrors);
+      }
+      extensions[ext.key] = { ...ext.defaults, ...(raw[ext.key] as Record<string, unknown>) };
+    } else {
+      extensions[ext.key] = { ...ext.defaults };
+    }
+  }
+
+  // Preserve unrecognized top-level keys for round-trip safety
+  const knownKeys = new Set(["company", "agents", "settings", "persona", ...configExtensions.map((e) => e.key)]);
+  for (const [key, value] of Object.entries(raw)) {
+    if (!knownKeys.has(key) && !(key in extensions)) {
+      extensions[key] = value;
+    }
+  }
+
   if (errors.length > 0) {
     throw new Error(`Config validation failed:\n  - ${errors.join("\n  - ")}`);
   }
@@ -234,6 +313,7 @@ export function validateConfig(raw: Record<string, unknown>): AicibConfig {
         DEFAULT_SETTINGS.auto_start_workers,
     },
     persona: personaConfig,
+    extensions,
   };
 }
 

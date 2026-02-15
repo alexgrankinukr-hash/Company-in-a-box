@@ -17,6 +17,112 @@ import chalk from "chalk";
 // Tools from soul.md that don't exist in the SDK — filter these out
 const EXCLUDED_TOOLS = new Set(["SendMessage", "TeamCreate"]);
 
+// --- Hook System ---
+// Context providers and message handlers allow future features to plug into
+// agent-runner without editing this file.
+
+/**
+ * A function that returns context text to inject into the CEO/agent prompts.
+ * Called during startCEOSession (system prompt) and sendBrief (brief prompt).
+ */
+export type ContextProvider = (
+  config: AicibConfig,
+  projectDir: string
+) => string | Promise<string>;
+
+interface ContextProviderEntry {
+  name: string;
+  provider: ContextProvider;
+}
+
+const contextProviders: ContextProviderEntry[] = [];
+
+/**
+ * Register a context provider that adds information to CEO/agent prompts.
+ * Call at module load time. The returned string is appended to the prompt.
+ *
+ * Example:
+ *   registerContextProvider('task-status', async (config, projectDir) => {
+ *     const tasks = await loadActiveTasks(projectDir);
+ *     return `## Active Tasks\n${tasks.map(t => `- ${t.title}`).join('\n')}`;
+ *   });
+ */
+export function registerContextProvider(
+  name: string,
+  provider: ContextProvider
+): void {
+  if (contextProviders.some((e) => e.name === name)) {
+    throw new Error(`Context provider "${name}" is already registered`);
+  }
+  contextProviders.push({ name, provider });
+}
+
+/**
+ * A function that processes each SDK message as it streams in.
+ * Used by features like Slack to tap into agent communication.
+ */
+export type MessageHandler = (msg: SDKMessage, config: AicibConfig) => void;
+
+interface MessageHandlerEntry {
+  name: string;
+  handler: MessageHandler;
+}
+
+const messageHandlers: MessageHandlerEntry[] = [];
+
+/**
+ * Register a message handler that receives every SDK message.
+ * Handlers run after the caller's onMessage callback.
+ *
+ * Example:
+ *   registerMessageHandler('slack-bridge', (msg, config) => {
+ *     if (msg.type === 'assistant') forwardToSlack(msg);
+ *   });
+ */
+export function registerMessageHandler(
+  name: string,
+  handler: MessageHandler
+): void {
+  if (messageHandlers.some((e) => e.name === name)) {
+    throw new Error(`Message handler "${name}" is already registered`);
+  }
+  messageHandlers.push({ name, handler });
+}
+
+/** Gather context from all registered providers. */
+async function gatherExtensionContext(
+  config: AicibConfig,
+  projectDir: string
+): Promise<string> {
+  let context = "";
+  for (const entry of contextProviders) {
+    try {
+      const result = await entry.provider(config, projectDir);
+      if (result && result.trim()) {
+        context += `\n\n${result}`;
+      }
+    } catch (err) {
+      console.warn(
+        `  Warning: Context provider "${entry.name}" failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+  return context;
+}
+
+/** Notify all registered message handlers. */
+function notifyMessageHandlers(msg: SDKMessage, config: AicibConfig): void {
+  for (const entry of messageHandlers) {
+    try {
+      entry.handler(msg, config);
+    } catch (err) {
+      console.warn(
+        `  Warning: Message handler "${entry.name}" failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+}
+
 /**
  * Loads the persona preset and per-agent overrides from config.
  * Returns { preset, overrides } ready to pass to loadAgentDefinitions.
@@ -180,13 +286,16 @@ export async function startCEOSession(
     journalTracker?.close();
   }
 
+  // Gather context from registered extension providers
+  const extensionContext = await gatherExtensionContext(config, projectDir);
+
   const ceoAppendPrompt = `${ceoAgent.content}
 
 ## Your Team (Available via Task tool)
 
 You have the following department heads. Delegate work to them using the Task tool:
 ${teamDescription}
-${journalBlock}
+${journalBlock}${extensionContext}
 
 ## Company: ${config.company.name}
 ## Cost Limits: $${config.settings.cost_limit_daily}/day, $${config.settings.cost_limit_monthly}/month
@@ -240,6 +349,7 @@ Keep it concise — 3-5 sentences max.`;
     if (onMessage) {
       onMessage(message);
     }
+    notifyMessageHandlers(message, config);
 
     // Capture result data from the final message
     if (message.type === "result") {
@@ -281,10 +391,13 @@ export async function sendBrief(
   const subagents = buildSubagentMap(projectDir, config, personaData);
   const ceoModel = config.agents.ceo?.model || ceoAgent.frontmatter.model;
 
+  // Gather context from registered extension providers
+  const extensionContext = await gatherExtensionContext(config, projectDir);
+
   const briefPrompt = `DIRECTIVE FROM HUMAN FOUNDER:
 
 ${directive}
-
+${extensionContext ? `\n## Current Context\n${extensionContext}\n` : ""}
 ---
 Process this directive according to your CEO role. Decompose into department-level objectives and delegate to your team using the Task tool. Report back with your plan before executing.`;
 
@@ -325,6 +438,7 @@ Process this directive according to your CEO role. Decompose into department-lev
     if (onMessage) {
       onMessage(message);
     }
+    notifyMessageHandlers(message, config);
 
     if (message.type === "result") {
       const resultMsg = message as SDKResultMessage;
