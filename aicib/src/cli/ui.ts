@@ -83,6 +83,7 @@ export function costColor(current: number, limit: number): ChalkInstance {
  */
 export function formatPercent(current: number, limit: number): string {
   if (limit <= 0) return "N/A";
+  if (!Number.isFinite(current) || current < 0) return "N/A";
   return `${((current / limit) * 100).toFixed(1)}%`;
 }
 

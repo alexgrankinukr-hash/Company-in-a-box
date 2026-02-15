@@ -158,8 +158,9 @@ export async function startCEOSession(
 
   // Load recent journal entries for CEO memory
   let journalBlock = "";
+  let journalTracker: CostTracker | undefined;
   try {
-    const journalTracker = new CostTracker(projectDir);
+    journalTracker = new CostTracker(projectDir);
     const entries = journalTracker.getRecentJournalEntries(10);
     if (entries.length > 0) {
       const formatted = journalTracker.formatJournalForContext(entries);
@@ -171,9 +172,11 @@ export async function startCEOSession(
         journalBlock = `\n\n${formatted}`;
       }
     }
-    journalTracker.close();
-  } catch {
-    // Journal loading is best-effort
+  } catch (error) {
+    // Journal loading is best-effort — warn but don't block session startup
+    console.warn("  Warning: Failed to load journal entries:", error instanceof Error ? error.message : String(error));
+  } finally {
+    journalTracker?.close();
   }
 
   const ceoAppendPrompt = `${ceoAgent.content}
@@ -362,7 +365,6 @@ export async function generateJournalEntry(
         cwd: projectDir,
         tools: [],
         permissionMode: "bypassPermissions",
-        allowDangerouslySkipPermissions: true,
         maxBudgetUsd: 0.05,
       },
     });
@@ -416,6 +418,7 @@ export function recordRunCosts(
       if (modelId.includes("opus")) shortModel = "opus";
       else if (modelId.includes("sonnet")) shortModel = "sonnet";
       else if (modelId.includes("haiku")) shortModel = "haiku";
+      else console.warn(`  Warning: Unknown model ID "${modelId}" — cost may use incorrect pricing tier.`);
 
       const label = `${agentRole}-${shortModel}`;
       costTracker.recordCost(
