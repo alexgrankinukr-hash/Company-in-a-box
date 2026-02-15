@@ -85,6 +85,30 @@ export function formatMessageWithColor(
       const tag = formatAgentTag("system");
       return `${tag} Session: ${sysMsg.session_id} | Model: ${sysMsg.model}`;
     }
+    if ((sysMsg.subtype as string) === "task_notification") {
+      const taskMsg = sysMsg as SDKSystemMessage & {
+        taskName?: string;
+        taskStatus?: string;
+        agentName?: string;
+      };
+      const agent = taskMsg.agentName || taskMsg.taskName || "subagent";
+      const status = taskMsg.taskStatus || "update";
+      const agentTag = formatAgentTag(agent.toLowerCase());
+      return `${agentTag} Task ${status}`;
+    }
+    if ((sysMsg.subtype as string) === "tool_progress") {
+      const progressMsg = sysMsg as SDKSystemMessage & {
+        toolName?: string;
+        agentName?: string;
+        content?: string;
+      };
+      const agent = progressMsg.agentName || "subagent";
+      const tool = progressMsg.toolName || "tool";
+      const content = progressMsg.content || "";
+      const agentTag = formatAgentTag(agent.toLowerCase());
+      const snippet = content.length > 120 ? content.slice(0, 120) + "..." : content;
+      return `${agentTag} ${chalk.dim(`[${tool}]`)} ${snippet}`;
+    }
   }
 
   if (message.type === "result") {

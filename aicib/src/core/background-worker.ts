@@ -13,6 +13,7 @@
 
 import { loadConfig } from "./config.js";
 import { CostTracker } from "./cost-tracker.js";
+import type { SDKSystemMessage } from "@anthropic-ai/claude-agent-sdk";
 import { sendBrief, recordRunCosts, generateJournalEntry, formatMessagePlain } from "./agent-runner.js";
 
 async function main(): Promise<void> {
@@ -39,6 +40,9 @@ async function main(): Promise<void> {
 
   // Record this process's PID so the CLI can check liveness / kill it
   costTracker.updateBackgroundJob(jobId, { pid: process.pid });
+
+  // Set CEO status to working
+  costTracker.setAgentStatus("ceo", "working", directive.slice(0, 100));
 
   let config;
   try {
@@ -74,6 +78,30 @@ async function main(): Promise<void> {
           }
           costTracker.logBackgroundMessage(jobId, msg.type, role, formatted);
         }
+
+        // Track sub-agent status from task_notification messages
+        if (
+          msg.type === "system" &&
+          "subtype" in msg &&
+          ((msg as SDKSystemMessage).subtype as string) === "task_notification"
+        ) {
+          const taskMsg = msg as SDKSystemMessage & {
+            taskName?: string;
+            taskStatus?: string;
+            agentName?: string;
+          };
+          const agent = (
+            taskMsg.agentName ||
+            taskMsg.taskName ||
+            "subagent"
+          ).toLowerCase();
+          const status = taskMsg.taskStatus || "working";
+          const taskLabel =
+            status === "completed" || status === "done"
+              ? "idle"
+              : "working";
+          costTracker.setAgentStatus(agent, taskLabel);
+        }
       }
     );
 
@@ -108,6 +136,9 @@ async function main(): Promise<void> {
       costTracker.logBackgroundMessage(jobId, "warning", "system", "[JOURNAL] Failed to generate summary");
     }
 
+    // Mark CEO as idle after successful completion
+    costTracker.setAgentStatus("ceo", "idle");
+
     costTracker.updateBackgroundJob(jobId, {
       status: "completed",
       completed_at: new Date().toISOString(),
@@ -127,6 +158,9 @@ async function main(): Promise<void> {
       "system",
       `[ERROR] ${errorMsg}`
     );
+
+    // Mark CEO as error on failure
+    try { costTracker.setAgentStatus("ceo", "error"); } catch { /* best-effort */ }
 
     costTracker.updateBackgroundJob(jobId, {
       status: "failed",

@@ -107,3 +107,95 @@ Track edge cases discovered during implementation.
 **Scenario:** User runs `aicib logs --lines abc` or `aicib logs --lines -5`
 **Handling:** Validates parsed number is a positive integer. Rejects NaN, negative, zero, and fractional values.
 **User sees:** "Error: --lines must be a positive integer."
+
+## CEO Journal / Memory (S3)
+
+### Journal Loading — Database Error
+
+**Scenario:** Journal database is corrupted, has schema issues, or has permission problems when CEO starts up
+**Handling:** `startCEOSession()` catches the error and logs a console warning. CostTracker is always closed via `finally` block (no DB connection leak). CEO starts without journal context.
+**User sees:** "Warning: Failed to load journal entries: [error details]" — then normal session startup.
+
+### Journal Generation — API Failure
+
+**Scenario:** Haiku model call fails during journal summary generation (network error, budget exceeded, etc.)
+**Handling:** Caught in `generateJournalEntry()`, warning logged. Brief result is unaffected.
+**User sees:** "Warning: Journal entry generation failed: [error details]" — brief output is already complete.
+
+### Journal Context — Too Long
+
+**Scenario:** 10 journal entries exceed ~6000 characters (~3000 tokens), which could bloat the CEO's context
+**Handling:** `startCEOSession()` trims to 5 entries if formatted text exceeds 6000 chars
+**User sees:** Nothing — handled transparently
+
+## Personas (S2)
+
+### Init/Start — Missing Persona Preset
+
+**Scenario:** Preset file doesn't exist or is malformed (e.g., template was created with an older version)
+**Handling:** `loadPersonaFromConfig()` catches the error. For the default "professional" preset, shows a dim note. For user-selected presets, shows a warning.
+**User sees:** "Note: No persona preset loaded. Agents running with base personalities only." or "Warning: Persona preset 'creative' could not be loaded."
+
+### Config — Override Key Typo
+
+**Scenario:** User sets a persona override for a role that doesn't exist (e.g., `overrides: { marketing: creative }` instead of `cmo`)
+**Handling:** `buildSubagentMap()` checks override keys against loaded agent roles after building the map
+**User sees:** "Warning: Persona override key 'marketing' does not match any agent role. Check spelling in config."
+
+## Cost & Budget (S4)
+
+### Brief — Daily Cost Limit Reached
+
+**Scenario:** Today's accumulated API costs exceed the configured daily limit
+**Handling:** `brief.ts` checks `getTotalCostToday()` before sending. Hard stop if exceeded.
+**User sees:** "Daily cost limit reached ($50.12 / $50). Increase the limit in aicib.config.yaml or wait until tomorrow."
+
+### Brief — Monthly Cost Limit Reached
+
+**Scenario:** This month's accumulated API costs exceed the configured monthly limit
+**Handling:** `brief.ts` checks `isMonthlyLimitReached()` before sending. Hard stop if exceeded.
+**User sees:** "Monthly cost limit reached."
+
+### Brief — Approaching Budget Limit
+
+**Scenario:** Costs are between 50-80% or above 80% of daily/monthly limit
+**Handling:** Warning displayed but brief proceeds
+**User sees:** Yellow warning at 50%+, red warning at 80%+, with dollar amounts and percentages
+
+### Cost Display — Corrupted Data
+
+**Scenario:** Cost value is NaN, Infinity, or negative due to database corruption
+**Handling:** `formatPercent()` returns "N/A" for non-finite or negative values instead of displaying garbage like "NaN%"
+**User sees:** "N/A" in the percentage column
+
+## Session Completion & Status Tracking (S6)
+
+### Brief — Session Ends Before Sub-Agents Finish
+
+**Scenario:** CEO delegates to CTO/CFO/CMO via Task tool, but the session ends after only 4-5 CEO turns before sub-agents complete their work
+**Handling:** `maxTurns` set to 500 for CEO sessions and 200 for sub-agents. `maxBudgetUsd` remains the real cost safety net.
+**User sees:** Full delegation cycle completes — sub-agents run, CEO compiles results
+
+### Brief — Foreground Job Fails Mid-Execution
+
+**Scenario:** `sendBrief()` throws an error during a foreground brief after the foreground job record was already created
+**Handling:** Catch block marks the foreground job as "failed" in the database with the actual error message, and sets CEO status to "error"
+**User sees:** Error message in terminal. `aicib logs` shows the job as FAILED with the error details.
+
+### Status — Runtime Agent Status
+
+**Scenario:** User runs `aicib status` while a brief is executing
+**Handling:** `status.ts` reads from `agent_status` table (updated in real-time by brief.ts / background-worker.ts via `setAgentStatus()`). Shows working/idle/error/stopped with current task description.
+**User sees:** CEO shows "working" with task snippet; sub-agents show "working" when dispatched, "idle" when done
+
+### Logs — Foreground vs Background Job Display
+
+**Scenario:** User runs `aicib logs` after a foreground brief
+**Handling:** Foreground jobs are identified by `[foreground]` prefix on directive. Prefix stripped for display.
+**User sees:** "Foreground Job #N" header instead of "Background Job #N"
+
+### Cost Recording — Unknown Model
+
+**Scenario:** SDK returns a model ID that doesn't contain "opus", "sonnet", or "haiku" (e.g., a new model family)
+**Handling:** Falls back to the default pricing tier and logs a console warning
+**User sees:** "Warning: Unknown model ID 'claude-future-5' — cost may use incorrect pricing tier."

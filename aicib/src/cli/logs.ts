@@ -42,7 +42,7 @@ export async function logsCommand(options: LogsOptions): Promise<void> {
       const jobs = costTracker.listBackgroundJobs();
       if (jobs.length === 0) {
         console.log(
-          chalk.yellow("\n  No background jobs found.\n")
+          chalk.yellow("\n  No session logs found.\n")
         );
         costTracker.close();
         return;
@@ -57,10 +57,17 @@ export async function logsCommand(options: LogsOptions): Promise<void> {
       process.exit(1);
     }
 
-    console.log(header(`Logs for Job #${job.id}`));
+    // Detect foreground jobs by [foreground] prefix
+    const isForeground = job.directive.startsWith("[foreground] ");
+    const displayDirective = isForeground
+      ? job.directive.slice("[foreground] ".length)
+      : job.directive;
+    const modeLabel = isForeground ? "Foreground" : "Background";
+
+    console.log(header(`${modeLabel} Job #${job.id}`));
     console.log(
       chalk.dim(
-        `  Directive: "${job.directive.slice(0, 80)}${job.directive.length > 80 ? "..." : ""}"`
+        `  Directive: "${displayDirective.slice(0, 80)}${displayDirective.length > 80 ? "..." : ""}"`
       )
     );
 

@@ -124,6 +124,7 @@ export function buildSubagentMap(
       prompt: agent.content,
       tools,
       model,
+      maxTurns: 200,
     };
   }
 
@@ -223,6 +224,7 @@ Keep it concise — 3-5 sentences max.`;
       permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,
       maxBudgetUsd: config.settings.cost_limit_daily,
+      maxTurns: 500,
     },
   });
 
@@ -307,6 +309,7 @@ Process this directive according to your CEO role. Decompose into department-lev
       permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,
       maxBudgetUsd: config.settings.cost_limit_daily,
+      maxTurns: 500,
     },
   });
 
@@ -469,6 +472,16 @@ export function formatMessagePlain(message: SDKMessage): string | null {
     const sysMsg = message as SDKSystemMessage;
     if (sysMsg.subtype === "init") {
       return `[SYSTEM] Session: ${sysMsg.session_id} | Model: ${sysMsg.model}`;
+    }
+    if ((sysMsg.subtype as string) === "task_notification") {
+      const taskMsg = sysMsg as SDKSystemMessage & {
+        taskName?: string;
+        taskStatus?: string;
+        agentName?: string;
+      };
+      const agent = taskMsg.agentName || taskMsg.taskName || "subagent";
+      const status = taskMsg.taskStatus || "update";
+      return `[TASK] ${agent}: ${status}`;
     }
   }
 

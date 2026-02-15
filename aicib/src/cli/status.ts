@@ -148,27 +148,60 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       }
     }
 
-    // Show configured agents in a table
+    // Show configured agents in a table with runtime status
     const allAgents = listAllAgents(config);
+    const runtimeStatuses = costTracker.getAgentStatuses();
+    const statusMap = new Map(
+      runtimeStatuses.map((s) => [s.agent_role, s])
+    );
+
     const agentTable = createTable(
-      ["Agent", "Model", "Status", "Department"],
-      [22, 10, 10, 16]
+      ["Agent", "Model", "Status", "Task"],
+      [22, 10, 12, 30]
     );
 
     for (const agent of allAgents) {
       const colorFn = agentColor(agent.role);
-      const enabledStr = agent.enabled
-        ? chalk.green("enabled")
-        : chalk.red("disabled");
-      const dept =
-        agent.department !== agent.role
-          ? agent.department
+      let statusStr: string;
+
+      if (!agent.enabled) {
+        statusStr = chalk.red("disabled");
+      } else {
+        const runtime = statusMap.get(agent.role);
+        if (runtime) {
+          switch (runtime.status) {
+            case "working":
+              statusStr = chalk.yellow("working");
+              break;
+            case "error":
+              statusStr = chalk.red("error");
+              break;
+            case "idle":
+              statusStr = chalk.green("idle");
+              break;
+            default:
+              statusStr = chalk.dim(runtime.status);
+          }
+        } else {
+          statusStr = chalk.dim("stopped");
+        }
+      }
+
+      const runtime = statusMap.get(agent.role);
+      const taskStr =
+        runtime?.current_task && runtime.status === "working"
+          ? chalk.dim(
+              runtime.current_task.length > 28
+                ? runtime.current_task.slice(0, 28) + "..."
+                : runtime.current_task
+            )
           : "";
+
       agentTable.push([
         colorFn(agent.role),
         agent.model,
-        enabledStr,
-        dept,
+        statusStr,
+        taskStr,
       ]);
     }
 

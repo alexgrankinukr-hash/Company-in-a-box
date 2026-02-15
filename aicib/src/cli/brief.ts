@@ -6,8 +6,10 @@ import {
   sendBrief,
   recordRunCosts,
   generateJournalEntry,
+  formatMessagePlain,
 } from "../core/agent-runner.js";
 import { formatMessageWithColor } from "../core/output-formatter.js";
+import type { SDKSystemMessage } from "@anthropic-ai/claude-agent-sdk";
 import {
   startBackgroundBrief,
   isProcessRunning,
@@ -42,6 +44,7 @@ export async function briefCommand(
   console.log(chalk.dim(`  Directive: "${directive}"\n`));
 
   const costTracker = new CostTracker(projectDir);
+  let fgJobId: number | undefined;
 
   try {
     // Retrieve active SDK session ID
@@ -174,10 +177,19 @@ export async function briefCommand(
         chalk.dim("  View full logs:  aicib logs\n")
       );
     } else {
-      // --- Foreground mode: existing blocking behavior ---
+      // --- Foreground mode: blocking behavior with status tracking and log saving ---
       console.log(
         chalk.dim(`  Resuming session: ${activeSession.sdkSessionId}\n`)
       );
+
+      // Create a foreground job record for log persistence
+      fgJobId = costTracker.createForegroundJob(
+        activeSession.sessionId,
+        directive
+      );
+
+      // Set CEO status to working
+      costTracker.setAgentStatus("ceo", "working", directive.slice(0, 100));
 
       const result = await sendBrief(
         activeSession.sdkSessionId,
@@ -185,12 +197,62 @@ export async function briefCommand(
         projectDir,
         config,
         (msg) => {
+          // Display colored output to terminal
           const formatted = formatMessageWithColor(msg);
           if (formatted) {
             console.log(`  ${formatted}`);
           }
+
+          // Save every displayable message to the log DB
+          const plain = formatMessagePlain(msg);
+          if (plain) {
+            let role = "system";
+            if (msg.type === "assistant") {
+              role = msg.parent_tool_use_id ? "subagent" : "ceo";
+            } else if (msg.type === "result") {
+              role = "system";
+            }
+            costTracker.logBackgroundMessage(fgJobId!, msg.type, role, plain);
+          }
+
+          // Track sub-agent status from task_notification messages
+          if (
+            msg.type === "system" &&
+            "subtype" in msg &&
+            ((msg as SDKSystemMessage).subtype as string) === "task_notification"
+          ) {
+            const taskMsg = msg as SDKSystemMessage & {
+              taskName?: string;
+              taskStatus?: string;
+              agentName?: string;
+            };
+            const agent = (
+              taskMsg.agentName ||
+              taskMsg.taskName ||
+              "subagent"
+            ).toLowerCase();
+            const status = taskMsg.taskStatus || "working";
+            const taskLabel =
+              status === "completed" || status === "done"
+                ? "idle"
+                : "working";
+            costTracker.setAgentStatus(agent, taskLabel);
+          }
         }
       );
+
+      // Mark all agents idle now that session is done
+      costTracker.setAgentStatus("ceo", "idle");
+
+      // Update foreground job record with results
+      costTracker.updateBackgroundJob(fgJobId!, {
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        total_cost_usd: result.totalCostUsd,
+        num_turns: result.numTurns,
+        duration_ms: result.durationMs,
+        result_summary: `Completed in ${result.numTurns} turns, $${result.totalCostUsd.toFixed(4)} cost`,
+      });
 
       // Record costs
       recordRunCosts(
@@ -218,6 +280,17 @@ export async function briefCommand(
       );
     }
   } catch (error) {
+    // Set CEO to error status and mark foreground job as failed
+    try {
+      costTracker.setAgentStatus("ceo", "error");
+      if (fgJobId !== undefined) {
+        costTracker.updateBackgroundJob(fgJobId, {
+          status: "failed",
+          completed_at: new Date().toISOString(),
+          error_message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } catch { /* best-effort */ }
     console.error(
       chalk.red(
         `\n  Error: ${error instanceof Error ? error.message : String(error)}\n`

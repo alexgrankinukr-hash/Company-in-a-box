@@ -358,6 +358,10 @@ export class CostTracker {
     return Number(result.lastInsertRowid);
   }
 
+  createForegroundJob(sessionId: string, directive: string): number {
+    return this.createBackgroundJob(sessionId, `[foreground] ${directive}`);
+  }
+
   getBackgroundJob(jobId: number): BackgroundJob | null {
     return (
       (this.db
