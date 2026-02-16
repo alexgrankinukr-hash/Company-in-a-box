@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { getFallbackPricing } from "./model-router.js";
 
 export interface CostEntry {
   id: number;
@@ -92,14 +93,6 @@ export function registerTable(def: TableDefinition): void {
   tableRegistry.push(def);
 }
 
-// Approximate costs per million tokens (USD) — Updated Feb 2026
-// See: https://platform.claude.com/docs/en/about-claude/pricing
-const COST_PER_MILLION: Record<string, { input: number; output: number }> = {
-  opus: { input: 5.0, output: 25.0 },       // Claude Opus 4.6 / 4.5
-  sonnet: { input: 3.0, output: 15.0 },     // Claude Sonnet 4.5
-  haiku: { input: 1.0, output: 5.0 },       // Claude Haiku 4.5
-};
-
 export class CostTracker {
   private db: Database.Database;
 
@@ -117,6 +110,9 @@ export class CostTracker {
 
   private init(): void {
     this.db.exec(`
+      -- Note: estimated_cost_usd stores both estimated (calculated from token
+      -- counts) and actual (SDK-reported) costs. A column rename to cost_usd
+      -- would require a SQLite migration — deferred to Phase 3 cost reporting.
       CREATE TABLE IF NOT EXISTS cost_entries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         agent_role TEXT NOT NULL,
@@ -215,7 +211,7 @@ export class CostTracker {
     inputTokens: number,
     outputTokens: number
   ): void {
-    const rates = COST_PER_MILLION[model] || COST_PER_MILLION.sonnet;
+    const rates = getFallbackPricing(model);
     const cost =
       (inputTokens / 1_000_000) * rates.input +
       (outputTokens / 1_000_000) * rates.output;
@@ -226,6 +222,26 @@ export class CostTracker {
          VALUES (?, ?, ?, ?, ?)`
       )
       .run(agentRole, sessionId, inputTokens, outputTokens, cost);
+  }
+
+  /**
+   * Record cost using the SDK-reported actual cost (costUSD).
+   * Preferred over calculated pricing when the SDK provides it.
+   */
+  recordCostWithActual(
+    agentRole: string,
+    sessionId: string,
+    _model: string,
+    inputTokens: number,
+    outputTokens: number,
+    actualCostUsd: number
+  ): void {
+    this.db
+      .prepare(
+        `INSERT INTO cost_entries (agent_role, session_id, input_tokens, output_tokens, estimated_cost_usd)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(agentRole, sessionId, inputTokens, outputTokens, actualCostUsd);
   }
 
   getCostByAgent(sessionId?: string): AgentCostSummary[] {

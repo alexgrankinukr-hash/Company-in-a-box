@@ -1,11 +1,12 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
-import type {
-  SDKMessage,
-  SDKResultMessage,
-  SDKSystemMessage,
-  AgentDefinition as SDKAgentDefinition,
-  ModelUsage,
-} from "@anthropic-ai/claude-agent-sdk";
+import {
+  getEngine,
+  type EngineMessage,
+  type EngineResultMessage,
+  type EngineSystemMessage,
+  type EngineModelUsage,
+  type EngineAgentDefinition,
+} from "./engine/index.js";
+import { getModelTier } from "./model-router.js";
 import { loadAgentDefinitions, getTemplatePath } from "./agents.js";
 import { getAgentsDir } from "./team.js";
 import { CostTracker } from "./cost-tracker.js";
@@ -61,7 +62,7 @@ export function registerContextProvider(
  * A function that processes each SDK message as it streams in.
  * Used by features like Slack to tap into agent communication.
  */
-export type MessageHandler = (msg: SDKMessage, config: AicibConfig) => void;
+export type MessageHandler = (msg: EngineMessage, config: AicibConfig) => void;
 
 interface MessageHandlerEntry {
   name: string;
@@ -111,7 +112,7 @@ async function gatherExtensionContext(
 }
 
 /** Notify all registered message handlers. */
-function notifyMessageHandlers(msg: SDKMessage, config: AicibConfig): void {
+function notifyMessageHandlers(msg: EngineMessage, config: AicibConfig): void {
   for (const entry of messageHandlers) {
     try {
       entry.handler(msg, config);
@@ -175,7 +176,7 @@ export interface SessionResult {
   outputTokens: number;
   numTurns: number;
   durationMs: number;
-  modelUsage?: Record<string, ModelUsage>;
+  modelUsage?: Record<string, EngineModelUsage>;
 }
 
 /**
@@ -187,7 +188,7 @@ export function buildSubagentMap(
   config: AicibConfig,
   // preloaded avoids double-parsing when caller already loaded persona data
   preloaded?: { preset?: PersonaOverlay; overrides?: Map<string, PersonaOverlay> }
-): Record<string, SDKAgentDefinition> {
+): Record<string, EngineAgentDefinition> {
   const agentsDir = getAgentsDir(projectDir);
   const { preset, overrides } = preloaded || loadPersonaFromConfig(config);
   const agents = loadAgentDefinitions(agentsDir, preset, overrides);
@@ -204,7 +205,7 @@ export function buildSubagentMap(
     }
   }
 
-  const subagents: Record<string, SDKAgentDefinition> = {};
+  const subagents: Record<string, EngineAgentDefinition> = {};
 
   for (const [role, agent] of agents) {
     // Only include C-suite (reports_to === "ceo"), skip CEO itself and workers
@@ -220,10 +221,7 @@ export function buildSubagentMap(
     );
 
     // Model from config overrides soul.md default
-    const model = (agentConfig?.model || agent.frontmatter.model) as
-      | "opus"
-      | "sonnet"
-      | "haiku";
+    const model = agentConfig?.model || agent.frontmatter.model;
 
     subagents[role] = {
       description: `${agent.frontmatter.title} — head of ${agent.frontmatter.department} department. ${agent.frontmatter.spawns?.length ? `Manages: ${agent.frontmatter.spawns.join(", ")}` : ""}`,
@@ -244,7 +242,7 @@ export function buildSubagentMap(
 export async function startCEOSession(
   projectDir: string,
   config: AicibConfig,
-  onMessage?: (msg: SDKMessage) => void
+  onMessage?: (msg: EngineMessage) => void
 ): Promise<SessionResult> {
   const agentsDir = getAgentsDir(projectDir);
   const personaData = loadPersonaFromConfig(config);
@@ -318,29 +316,27 @@ Keep it concise — 3-5 sentences max.`;
     durationMs: 0,
   };
 
-  const queryStream = query({
+  const queryStream = getEngine().startSession({
     prompt: startPrompt,
-    options: {
-      systemPrompt: {
-        type: "preset",
-        preset: "claude_code",
-        append: ceoAppendPrompt,
-      },
-      model: ceoModel,
-      cwd: projectDir,
-      tools: { type: "preset", preset: "claude_code" },
-      agents: subagents,
-      permissionMode: "bypassPermissions",
-      allowDangerouslySkipPermissions: true,
-      maxBudgetUsd: config.settings.cost_limit_daily,
-      maxTurns: 500,
+    systemPrompt: {
+      type: "preset",
+      preset: "claude_code",
+      append: ceoAppendPrompt,
     },
+    model: ceoModel,
+    cwd: projectDir,
+    tools: { type: "preset", preset: "claude_code" },
+    agents: subagents,
+    permissionMode: "bypassPermissions",
+    allowDangerouslySkipPermissions: true,
+    maxBudgetUsd: config.settings.cost_limit_daily,
+    maxTurns: 500,
   });
 
   for await (const message of queryStream) {
     // Capture session ID from system init message
     if (message.type === "system" && "subtype" in message) {
-      const sysMsg = message as SDKSystemMessage;
+      const sysMsg = message as EngineSystemMessage;
       if (sysMsg.subtype === "init") {
         sessionId = sysMsg.session_id;
       }
@@ -353,7 +349,7 @@ Keep it concise — 3-5 sentences max.`;
 
     // Capture result data from the final message
     if (message.type === "result") {
-      const resultMsg = message as SDKResultMessage;
+      const resultMsg = message as EngineResultMessage;
       result = {
         sessionId: sessionId || resultMsg.session_id,
         totalCostUsd: resultMsg.total_cost_usd,
@@ -377,7 +373,7 @@ export async function sendBrief(
   directive: string,
   projectDir: string,
   config: AicibConfig,
-  onMessage?: (msg: SDKMessage) => void
+  onMessage?: (msg: EngineMessage) => void
 ): Promise<SessionResult> {
   const agentsDir = getAgentsDir(projectDir);
   const personaData = loadPersonaFromConfig(config);
@@ -411,26 +407,23 @@ Process this directive according to your CEO role. Decompose into department-lev
     durationMs: 0,
   };
 
-  const queryStream = query({
+  const queryStream = getEngine().resumeSession(sdkSessionId, {
     prompt: briefPrompt,
-    options: {
-      resume: sdkSessionId,
-      model: ceoModel,
-      cwd: projectDir,
-      tools: { type: "preset", preset: "claude_code" },
-      agents: subagents,
-      permissionMode: "bypassPermissions",
-      allowDangerouslySkipPermissions: true,
-      maxBudgetUsd: config.settings.cost_limit_daily,
-      maxTurns: 500,
-    },
+    model: ceoModel,
+    cwd: projectDir,
+    tools: { type: "preset", preset: "claude_code" },
+    agents: subagents,
+    permissionMode: "bypassPermissions",
+    allowDangerouslySkipPermissions: true,
+    maxBudgetUsd: config.settings.cost_limit_daily,
+    maxTurns: 500,
   });
 
   for await (const message of queryStream) {
     if (
       message.type === "system" &&
       "subtype" in message &&
-      (message as SDKSystemMessage).subtype === "init"
+      (message as EngineSystemMessage).subtype === "init"
     ) {
       sessionId = message.session_id;
     }
@@ -441,7 +434,7 @@ Process this directive according to your CEO role. Decompose into department-lev
     notifyMessageHandlers(message, config);
 
     if (message.type === "result") {
-      const resultMsg = message as SDKResultMessage;
+      const resultMsg = message as EngineResultMessage;
       result = {
         sessionId: sessionId || resultMsg.session_id,
         totalCostUsd: resultMsg.total_cost_usd,
@@ -474,16 +467,13 @@ export async function generateJournalEntry(
   let summaryText = "";
 
   try {
-    const queryStream = query({
+    const queryStream = getEngine().resumeSession(sdkSessionId, {
       prompt: summaryPrompt,
-      options: {
-        resume: sdkSessionId,
-        model: "haiku",
-        cwd: projectDir,
-        tools: [],
-        permissionMode: "bypassPermissions",
-        maxBudgetUsd: 0.05,
-      },
+      model: "haiku",
+      cwd: projectDir,
+      tools: [],
+      permissionMode: "bypassPermissions",
+      maxBudgetUsd: 0.05,
     });
 
     for await (const message of queryStream) {
@@ -530,21 +520,31 @@ export function recordRunCosts(
   // Per-model breakdown when SDK provides modelUsage
   if (result.modelUsage && Object.keys(result.modelUsage).length > 0) {
     for (const [modelId, usage] of Object.entries(result.modelUsage)) {
-      // Extract short model name: "claude-opus-4-..." → "opus", "claude-sonnet-4-5-..." → "sonnet"
-      let shortModel = model; // fallback
-      if (modelId.includes("opus")) shortModel = "opus";
-      else if (modelId.includes("sonnet")) shortModel = "sonnet";
-      else if (modelId.includes("haiku")) shortModel = "haiku";
-      else console.warn(`  Warning: Unknown model ID "${modelId}" — cost may use incorrect pricing tier.`);
+      const tier = getModelTier(modelId);
+      const label = `${agentRole}-${tier}`;
 
-      const label = `${agentRole}-${shortModel}`;
-      costTracker.recordCost(
-        label,
-        sessionId,
-        shortModel,
-        usage.inputTokens,
-        usage.outputTokens
-      );
+      // Prefer SDK-reported actual cost when available.
+      // We use > 0 rather than >= 0 because costUSD === 0 typically means the
+      // SDK didn't report cost for this model, not that the call was free.
+      // Falling back to estimated pricing is safer than recording $0.
+      if (usage.costUSD > 0) {
+        costTracker.recordCostWithActual(
+          label,
+          sessionId,
+          modelId,
+          usage.inputTokens,
+          usage.outputTokens,
+          usage.costUSD
+        );
+      } else {
+        costTracker.recordCost(
+          label,
+          sessionId,
+          modelId,
+          usage.inputTokens,
+          usage.outputTokens
+        );
+      }
     }
     return;
   }
@@ -563,7 +563,7 @@ export function recordRunCosts(
  * Formats an SDK message for terminal display. Returns null for messages
  * that shouldn't be displayed (tool progress, replays, etc.)
  */
-export function formatMessagePlain(message: SDKMessage): string | null {
+export function formatMessagePlain(message: EngineMessage): string | null {
   if (message.type === "assistant") {
     const content = message.message?.content;
     if (!content) return null;
@@ -583,12 +583,12 @@ export function formatMessagePlain(message: SDKMessage): string | null {
   }
 
   if (message.type === "system" && "subtype" in message) {
-    const sysMsg = message as SDKSystemMessage;
+    const sysMsg = message as EngineSystemMessage;
     if (sysMsg.subtype === "init") {
       return `[SYSTEM] Session: ${sysMsg.session_id} | Model: ${sysMsg.model}`;
     }
     if ((sysMsg.subtype as string) === "task_notification") {
-      const taskMsg = sysMsg as SDKSystemMessage & {
+      const taskMsg = sysMsg as EngineSystemMessage & {
         taskName?: string;
         taskStatus?: string;
         agentName?: string;
@@ -600,7 +600,7 @@ export function formatMessagePlain(message: SDKMessage): string | null {
   }
 
   if (message.type === "result") {
-    const resultMsg = message as SDKResultMessage;
+    const resultMsg = message as EngineResultMessage;
     return `[RESULT] Cost: $${resultMsg.total_cost_usd.toFixed(4)} | Turns: ${resultMsg.num_turns} | Duration: ${(resultMsg.duration_ms / 1000).toFixed(1)}s`;
   }
 

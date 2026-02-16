@@ -3,8 +3,10 @@ import path from "node:path";
 import yaml from "js-yaml";
 import type { PersonaPreset, PersonaConfig } from "./persona.js";
 import { VALID_PRESETS } from "./persona.js";
+import { isValidModelName } from "./model-router.js";
 
-export type ModelName = "opus" | "sonnet" | "haiku";
+/** Any valid model name — short ("opus") or full ("claude-opus-4-6"). */
+export type ModelName = string;
 export type EscalationThreshold = "low" | "medium" | "high";
 export type { PersonaConfig } from "./persona.js";
 
@@ -47,7 +49,6 @@ const DEFAULT_SETTINGS: SettingsConfig = {
   auto_start_workers: true,
 };
 
-const VALID_MODELS: ModelName[] = ["opus", "sonnet", "haiku"];
 const VALID_THRESHOLDS: EscalationThreshold[] = ["low", "medium", "high"];
 
 // --- Config Extension Registry ---
@@ -170,10 +171,10 @@ export function validateConfig(raw: Record<string, unknown>): AicibConfig {
 
       if (
         agent.model &&
-        !VALID_MODELS.includes(agent.model as ModelName)
+        !isValidModelName(agent.model as string)
       ) {
         errors.push(
-          `agents.${name}.model must be one of: ${VALID_MODELS.join(", ")}`
+          `agents.${name}.model "${agent.model}" is not a recognized model name. Use a short name (opus, sonnet, haiku) or a full Claude model ID (claude-opus-4-6, etc.)`
         );
       }
 
@@ -187,10 +188,10 @@ export function validateConfig(raw: Record<string, unknown>): AicibConfig {
                 const worker = workerRaw as Record<string, unknown>;
                 if (
                   worker.model &&
-                  !VALID_MODELS.includes(worker.model as ModelName)
+                  !isValidModelName(worker.model as string)
                 ) {
                   errors.push(
-                    `agents.${name}.workers.${workerName}.model must be one of: ${VALID_MODELS.join(", ")}`
+                    `agents.${name}.workers.${workerName}.model "${worker.model}" is not a recognized model name. Use a short name (opus, sonnet, haiku) or a full Claude model ID.`
                   );
                 }
               }
