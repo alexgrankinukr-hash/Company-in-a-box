@@ -79,6 +79,42 @@ After each brief, `generateJournalEntry()` resumes the CEO session with the Haik
 
 See `docs/technical/journal-and-output.md` for full details.
 
+### Hook System (Phase 2 Prep)
+
+The agent runner exposes two extension points for future features to plug in without editing `agent-runner.ts`:
+
+| Registry | Registration Function | What It Does |
+|----------|----------------------|-------------|
+| Context Providers | `registerContextProvider(name, fn)` | Inject text into CEO/agent prompts (e.g., active task list) |
+| Message Handlers | `registerMessageHandler(name, fn)` | Tap into every SDK message as it streams (e.g., Slack bridge) |
+
+Both are called at module load time. Context providers run during `startCEOSession()` and `sendBrief()`. Message handlers run after every streamed message.
+
+**Guards:**
+- Duplicate name → throws `Error` (prevents double-registration if a module is imported twice)
+- Handler errors → logged as warnings via `console.warn`, never break the main flow
+- Context provider errors → same warning pattern
+
+The config system (`config.ts`) has a parallel extension registry:
+
+| Registry | Registration Function | What It Does |
+|----------|----------------------|-------------|
+| Config Extensions | `registerConfigExtension({ key, defaults, validate? })` | Add a new top-level YAML section with defaults and validation |
+
+**Guards:**
+- Reserved keys (`company`, `agents`, `settings`, `persona`) → throws `Error`
+- Duplicate key → throws `Error`
+- Partial YAML values → shallow-merged with defaults (e.g., `{ level: 'high' }` merged with `{ enabled: true, level: 'medium' }` → `{ enabled: true, level: 'high' }`)
+- Unknown top-level YAML keys → preserved in `extensions` for round-trip safety (not silently dropped on save)
+
+The cost tracker (`cost-tracker.ts`) has a table registry:
+
+| Registry | Registration Function | What It Does |
+|----------|----------------------|-------------|
+| Table Registry | `registerTable({ name, createSQL, indexes? })` | Register a new SQLite table created during `CostTracker.init()` |
+
+**Guard:** Duplicate table name → throws `Error`
+
 ### SDK Configuration
 
 The CEO session is configured with:
@@ -156,6 +192,11 @@ Both foreground (`brief.ts`) and background (`background-worker.ts`) paths now t
 - **Journal DB connection**: Always closed via `finally` block, even if loading throws
 - **Persona preset missing**: Warned but not blocking — agents run with base personality only
 - **Persona override typo**: Warns if an override key doesn't match any agent role
+- **Duplicate hook registration**: Context providers, message handlers, config extensions, and table registrations all throw on duplicate name/key
+- **Reserved config key**: `registerConfigExtension()` rejects `company`, `agents`, `settings`, `persona`
+- **Partial extension config**: Missing fields filled from defaults via shallow merge
+- **Unknown YAML keys**: Preserved through load/save round-trips instead of being silently dropped
+- **Message handler failure**: Logged as warning, never breaks the main message stream
 
 ## Related Docs
 

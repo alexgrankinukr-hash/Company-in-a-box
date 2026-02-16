@@ -176,7 +176,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 ---
 
-## Phase 2: Organizational Intelligence (Weeks 4-6)
+## Phase 2: Organizational Intelligence (Weeks 4-7)
 
 **Goal:** Make agents smart — autonomous decision-making, task management, knowledge accumulation, long-running autonomous projects, **Slack as the first interface outside the terminal**, and the beginning of real "company" behavior.
 
@@ -186,32 +186,224 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 ### Features
 
+> **About the # column:** Each feature has a unique number used throughout this document and the dependency graph. Features originally planned have their original numbers; features added later were assigned numbers 28-31. The table is sorted by Wave (see execution plan below) — features you build first are at the top.
+
 | # | Feature | What it does | Complexity |
 |---|---------|-------------|-----------|
+| 3 | Agent Skills System | Structured capabilities that agents can have. A "skill" is a combination of a prompt template + the tools needed + the knowledge required. Like job skills on a resume — but executable. | Large (1.5 weeks) |
 | 5 | Autonomy & Decision-Making Matrix | A rules table that defines what each agent can decide on their own vs. what needs approval. Example: the CMO can write a blog post without asking, but needs CEO approval to commit to a partnership. | Large (1.5 weeks) |
 | 6 | Task/Project Management System | A built-in task board (like Trello) where agents create, assign, track, and complete tasks. Includes priority levels and review chains (junior work gets reviewed by seniors). | Large (1.5 weeks) |
-| 3 | Agent Skills System | Structured capabilities that agents can have. A "skill" is a combination of a prompt template + the tools needed + the knowledge required. Like job skills on a resume — but executable. | Large (1.5 weeks) |
-| 7 | Knowledge Management | A company wiki that agents build and reference. Includes: shared knowledge base, personal journals (each agent keeps notes), and a decision log (why did we decide X?). Uses SQLite for fast search. Builds on the CEO journal/memory from Phase 1 — extends it to all agents and adds the shared wiki. | Large (1.5 weeks) |
-| NEW | Long Autonomous Task Chains | The ability to give the CEO a big project ("build me a car sales website") and have the team work on it for hours autonomously. The CEO plans the project, breaks it into phases, delegates phase by phase, reviews results after each phase, requests fixes if needed, and only pings the founder when the full project is complete. Think of it like giving your CEO a brief on Monday morning and getting a finished deliverable by end of day — without checking in every 10 minutes. Builds on background mode from Phase 1. | Large (1.5 weeks) |
+| 18 | Slack Bot (first interface outside the terminal) | Your AI company lives inside Slack. Each department gets a channel (#ceo, #engineering, #marketing, #finance). You message the CEO channel with a brief, and agents post their work in their department channels — like watching real employees collaborate. You can send briefs, receive reports, and watch delegation happen in real time. Uses a free Slack workspace. This is the fastest way to interact with your company outside the terminal, and it's incredibly natural — you already know how Slack works. Think of it as your AI company "moving into" your Slack workspace. | Medium (1-1.5 weeks) |
 | 24 | Error Handling & Escalation Protocol | What happens when things go wrong. A 6-step chain: retry → ask a colleague → escalate to manager → escalate to department head → escalate to CEO → escalate to human founder. | Small (0.5 weeks) |
+| 29 | Multi-Model Support | Let agents use AI models from different companies — not just Claude. Uses LiteLLM (a universal adapter that talks to 100+ model providers) so the founder can assign any model to any agent. Example: CEO on Claude Opus (best reasoning), workers on a cheaper model, or a local model via Ollama (free, runs on your own computer). Think of it like hiring employees with different skill levels at different salary rates — you pick who gets the expensive brain vs. the budget brain. | Medium (1 week) |
+| 7 | Knowledge Management | A company wiki that agents build and reference. Includes: shared knowledge base, personal journals (each agent keeps notes), and a decision log (why did we decide X?). Uses SQLite for fast search. Builds on the CEO journal/memory from Phase 1 — extends it to all agents and adds the shared wiki. | Large (1.5 weeks) |
 | 9 | HR System (basics) | Agent lifecycle management — hiring new agents (adding them to the team), onboarding (they gradually gain more autonomy as they prove themselves), and performance reviews. | Medium (1 week) |
-| NEW | Multi-Model Support | Let agents use AI models from different companies — not just Claude. Uses LiteLLM (a universal adapter that talks to 100+ model providers) so the founder can assign any model to any agent. Example: CEO on Claude Opus (best reasoning), workers on a cheaper model, or a local model via Ollama (free, runs on your own computer). Think of it like hiring employees with different skill levels at different salary rates — you pick who gets the expensive brain vs. the budget brain. | Medium (1 week) |
-| NEW | Cost Tracking Upgrade | Two improvements to the money tracking system. **First:** stop using hardcoded prices — instead, use the actual cost reported by each model provider's API (so if Anthropic changes their prices, our numbers update automatically). **Second:** add a configurable pricing table in the config file so the founder can set custom rates for any model (needed for local models that are free, or new providers whose prices we don't know yet). Also adds `cost_limit_daily: 0` documentation so founders know how to run with unlimited budget. Without this upgrade, adding new models in the multi-model feature would show wrong costs or $0. | Small (0.5 weeks) |
-| NEW | Slack Bot (first interface outside the terminal) | Your AI company lives inside Slack. Each department gets a channel (#ceo, #engineering, #marketing, #finance). You message the CEO channel with a brief, and agents post their work in their department channels — like watching real employees collaborate. You can send briefs, receive reports, and watch delegation happen in real time. Uses a free Slack workspace. This is the fastest way to interact with your company outside the terminal, and it's incredibly natural — you already know how Slack works. Think of it as your AI company "moving into" your Slack workspace. | Medium (1-1.5 weeks) |
+| 28 | Long Autonomous Task Chains | The ability to give the CEO a big project ("build me a car sales website") and have the team work on it for hours autonomously. The CEO plans the project, breaks it into phases, delegates phase by phase, reviews results after each phase, requests fixes if needed, and only pings the founder when the full project is complete. Think of it like giving your CEO a brief on Monday morning and getting a finished deliverable by end of day — without checking in every 10 minutes. Builds on background mode from Phase 1. | Large (1.5 weeks) |
+| 30 | Cost Tracking Upgrade | Two improvements to the money tracking system. **First:** stop using hardcoded prices — instead, use the actual cost reported by each model provider's API (so if Anthropic changes their prices, our numbers update automatically). **Second:** add a configurable pricing table in the config file so the founder can set custom rates for any model (needed for local models that are free, or new providers whose prices we don't know yet). Also adds `cost_limit_daily: 0` documentation so founders know how to run with unlimited budget. Without this upgrade, adding new models in the multi-model feature would show wrong costs or $0. | Small (0.5 weeks) |
+| 31 | Agent Engine Abstraction Layer | When building multi-model support, create a thin interface layer between AICIB's core code and the Agent SDK. This way, AICIB's code talks to our own functions instead of directly to SDK functions. If we ever need to switch engines (e.g., to Pi, raw API, or something new), we only change the adapter — not the entire codebase. Think of it like a universal power adapter: our code uses one plug, the adapter converts to whatever engine we need. Low risk, high optionality — takes a few days, saves weeks if we ever need to switch. See `implementation/Research-Pi-vs-AgentSDK.md` for full analysis. | Small (0.5 weeks) |
 
-### Parallel Sessions — Phase 2
+### Phase 2 Dependency & Parallelism Diagram
 
-| Session | Workstream | What needs to exist first |
-|---------|-----------|--------------------------|
-| **S1** | Autonomy matrix + escalation rules | Needs the core engine, agent identities, and communication from Phase 1 |
-| **S2** | Task management system — the internal task board with priorities and review workflows | Needs the core engine + communication system |
-| **S3** | Skills + knowledge management — the wiki, journals, decision log, and skill definitions. Extends the CEO journal/memory system from Phase 1 to all agents. | Needs agent identity system + CEO memory from Phase 1 |
-| **S4** | Long autonomous task chains — multi-phase project execution where CEO plans → delegates → reviews → iterates → delivers. Also builds on background mode from Phase 1. Plus HR system basics. Plus multi-model support (LiteLLM integration) and cost tracking upgrade (use API-reported costs, configurable pricing table). | Needs background mode + core engine + cost tracker from Phase 1 |
-| **S5** | Slack Bot + community setup — build the Slack integration so the founder can interact with their AI company through Slack channels instead of the terminal. Also set up GitHub Issues, Discord, contributing guide. | Needs communication system from Phase 1. Slack API setup is independent. |
+> **IMPORTANT: Single-directory execution.** All sessions work in the same project folder — no separate git branches. This means two sessions CANNOT safely edit the same file at the same time. If Session 1 edits `agent-runner.ts` and Session 2 also edits `agent-runner.ts` at the same time, one will overwrite the other's work.
+>
+> **The rule:** Two sessions can only run in parallel if they touch COMPLETELY DIFFERENT files. Since `agent-runner.ts` is modified by 10 of 11 features, `config.ts` by 9, and `cost-tracker.ts` by 7, we must be much more careful about what runs at the same time.
+>
+> **The strategy:** We use a 4-wave approach: a short prep wave to make the shared files "safe" for future features, then 3 waves that maximize parallelism while respecting file ownership.
+
+```
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+║              PHASE 2 — SINGLE-DIRECTORY EXECUTION PLAN                         ║
+║                                                                                ║
+║  All Phase 1 work is COMPLETE. All sessions work in the SAME folder.           ║
+║  Rule: No two sessions can edit the same file at the same time.                ║
+║                                                                                ║
+╠══════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  WAVE 0 — PREP (half day, 1 session) ✅ COMPLETE                               ║
+║  ─────────────────────────────────────                                          ║
+║  Refactored the 3 shared "bottleneck" files so future features can plug        ║
+║  in without stepping on each other:                                            ║
+║                                                                                ║
+║    agent-runner.ts  → Added "context providers" + "message handlers"           ║
+║                       hook system. Each feature registers a function            ║
+║                       that adds its context or taps into messages.             ║
+║                       Features don't edit agent-runner — they register.        ║
+║                                                                                ║
+║    config.ts        → Added extensible config system.                          ║
+║                       Each feature defines its own config section in           ║
+║                       a separate file. The main config merges them.            ║
+║                                                                                ║
+║    cost-tracker.ts  → Added "table registry" pattern.                          ║
+║                       Each feature registers its own DB tables.                ║
+║                       No one edits the main initDb() function.                 ║
+║                                                                                ║
+║  Peer-reviewed by Cursor + Codex. 5 fixes applied:                            ║
+║    - Reserved key guard on config extensions (company/agents/etc.)             ║
+║    - Duplicate registration prevention on all 4 registries                     ║
+║    - Shallow-merge defaults for partial YAML extension sections                ║
+║    - Unknown YAML keys preserved through round-trips                           ║
+║    - Message handler errors logged instead of silently swallowed               ║
+║                                                                                ║
+║  Think of this like installing a breaker panel with labeled empty slots        ║
+║  before electricians start. Each electrician just plugs into their slot.       ║
+║                                                                                ║
+╠══════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  WAVE 1 (2 parallel sessions, ~2 weeks)                                        ║
+║  ──────────────────────────────────────                                         ║
+║  These two features touch COMPLETELY DIFFERENT parts of the codebase:          ║
+║                                                                                ║
+║    Session 1:  #29 Multi-Model → #31 Abstraction → #30 Cost Upgrade            ║
+║                Creates: core/model-router.ts, core/engine/*.ts                 ║
+║                Modifies: agent-runner.ts (SDK call layer — LOW level)           ║
+║                          cost-tracker.ts (pricing constants)                   ║
+║                                                                                ║
+║    Session 2:  #18 Slack Bot                                                   ║
+║                Creates: integrations/slack/*.ts, cli/slack.ts                  ║
+║                Modifies: almost nothing existing — builds in its own           ║
+║                          new directory                                         ║
+║                                                                                ║
+║    WHY SAFE: Session 1 rewrites the low-level engine layer.                    ║
+║    Session 2 builds an entirely new integration in a new folder.               ║
+║    They don't touch any of the same files.                                     ║
+║                                                                                ║
+╠══════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  WAVE 2 (2 parallel sessions, ~2 weeks) — starts after Wave 1                 ║
+║  ──────────────────────────────────────                                         ║
+║  WHY WAIT: Wave 1's engine abstraction (#31) changes how agent-runner.ts       ║
+║  works internally. These features need to build on the stable new              ║
+║  foundation, not the old one that's about to be rewritten.                     ║
+║                                                                                ║
+║    Session 3:  #5 Autonomy Matrix + #24 Error Handling + #3 Skills             ║
+║                Creates: core/autonomy-matrix.ts, core/escalation.ts,           ║
+║                         core/skills.ts                                         ║
+║                Modifies: agents.ts (add fields), template soul.md files        ║
+║                Registers: context providers + config sections + DB tables      ║
+║                                                                                ║
+║    Session 4:  #6 Task/Project Management                                      ║
+║                Creates: core/task-manager.ts, cli/tasks.ts                     ║
+║                Modifies: nothing that Session 3 touches                        ║
+║                Registers: context providers + config sections + DB tables      ║
+║                                                                                ║
+║    WHY SAFE: Session 3 owns "agent intelligence" — what agents know,           ║
+║    what they can decide, what skills they have. It touches agents.ts           ║
+║    and soul.md template files.                                                 ║
+║    Session 4 owns "work tracking" — the task board. It creates entirely        ║
+║    new files and uses the hook system. Different concern, different files.     ║
+║                                                                                ║
+║    WHY GROUPED: #5 Autonomy, #24 Escalation, and #3 Skills all modify         ║
+║    the same files (agents.ts, soul.md templates). Keeping them in ONE          ║
+║    session means one agent has full context of all changes — no conflicts.     ║
+║                                                                                ║
+╠══════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  WAVE 3 (3 parallel sessions, ~1.5 weeks) — starts after Wave 2               ║
+║  ──────────────────────────────────────                                         ║
+║  These features each create MOSTLY NEW FILES in new directories.               ║
+║  They use the hook system to register with the core — minimal shared edits.    ║
+║                                                                                ║
+║    Session 5:  #7 Knowledge Management                                         ║
+║                NEEDS: #5 Autonomy (from Session 3)                             ║
+║                Creates: core/knowledge.ts, cli/knowledge.ts                    ║
+║                                                                                ║
+║    Session 6:  #28 Long Autonomous Task Chains                                 ║
+║                NEEDS: #6 Task Management (from Session 4)                      ║
+║                Creates: core/project-planner.ts                                ║
+║                Modifies: background-worker.ts, background-manager.ts           ║
+║                                                                                ║
+║    Session 7:  #9 HR System                                                    ║
+║                NEEDS: #5 Autonomy (from Session 3)                             ║
+║                Creates: core/hr.ts, cli/hr.ts                                  ║
+║                                                                                ║
+║    WHY SAFE: Each creates its own new files. Session 6 is the only one         ║
+║    that modifies existing files (background-worker.ts) — and Sessions 5        ║
+║    and 7 don't touch those files at all.                                       ║
+║                                                                                ║
+╠══════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  DEPENDENCY ARROWS (what must finish before what):                              ║
+║                                                                                ║
+║  Feature dependencies:                                                         ║
+║    #5 ──→ #7      (Autonomy before Knowledge Management)                      ║
+║    #5 ──→ #9      (Autonomy before HR System)                                 ║
+║    #6 ──→ #28     (Task Management before Long Task Chains)                   ║
+║    #29 ─→ #31     (Multi-Model before Abstraction Layer)                      ║
+║    #29 ─→ #30     (Multi-Model before Cost Tracking Upgrade)                  ║
+║                                                                                ║
+║  File-safety constraints (single-directory):                                   ║
+║    Wave 0 ──→ everything (prep must finish first)                             ║
+║    Wave 1 ──→ Wave 2 (engine rewrite must stabilize before new features)      ║
+║    Wave 2 ──→ Wave 3 (agent intelligence + tasks must exist first)            ║
+║    Within each wave, parallel sessions touch DIFFERENT files only              ║
+║                                                                                ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+```
+
+### Optimal Execution Timeline
+
+> **How to read this timeline:** Each row is a time period. Sessions listed on the same row run at the same time in separate terminal windows. All sessions work in the same project folder. The key constraint is that no two sessions modify the same file at the same time.
+
+| When | Sessions | What's happening | Parallel? |
+|------|----------|-----------------|-----------|
+| **Day 1** (half day) | Wave 0: Prep session | **COMPLETE.** Refactored the 3 bottleneck files (`agent-runner.ts`, `config.ts`, `cost-tracker.ts`) with plugin/hook system. Peer-reviewed by Cursor + Codex, 5 fixes applied (reserved key guard, duplicate prevention, default merging, round-trip safety, error logging). | No — solo |
+| **Week 4** | Wave 1: Sessions 1 + 2 | Session 1 builds #29 Multi-Model → #31 Abstraction → #30 Cost Upgrade (engine layer). Session 2 builds #18 Slack Bot (new directory). **Safe:** completely different files. | **Yes — 2 parallel** |
+| **Weeks 5-6** | Wave 2: Sessions 3 + 4 | Session 3 builds #5 Autonomy + #24 Escalation + #3 Skills (agent intelligence). Session 4 builds #6 Task Management (work tracking). **Safe:** different files, different concerns. | **Yes — 2 parallel** |
+| **Week 7** | Wave 3: Sessions 5 + 6 + 7 | Session 5 builds #7 Knowledge. Session 6 builds #28 Long Task Chains. Session 7 builds #9 HR System. **Safe:** each creates its own new files, minimal overlap. | **Yes — 3 parallel** |
+| **Week 7 end** | Final integration + test | One session verifies all 11 features work together. Fix any interactions. | No — solo |
+
+### Session Details — Phase 2
+
+> **What changed from the original plan:** We're working in a single directory (no git branches), so we can't have 5 sessions all editing the same files simultaneously. The new plan uses 4 waves with at most 2-3 parallel sessions per wave, carefully ensuring parallel sessions touch different files. A prep step creates "plugin slots" in the shared files so features can register themselves without editing shared code. This is slower than 5-way parallel (about 4 weeks vs. 3) but it's the fastest safe approach for single-directory work.
+
+**Wave 0 — Prep (half day, 1 session) — COMPLETE:**
+
+| What | Status |
+|------|--------|
+| "Context provider" + "message handler" hook system in `agent-runner.ts` | Done. Features register functions to inject prompt context or tap into message streams. Duplicate name guard + error logging. |
+| Extensible config system in `config.ts` | Done. Features register config sections with defaults + optional validators. Reserved key guard, duplicate key guard, default merging, unknown key round-trip preservation. |
+| Table registry in `cost-tracker.ts` | Done. Features register DB tables created during init. Duplicate name guard. |
+| Peer review fixes (Cursor + Codex) | Done. 5 of 14 findings fixed; 9 deferred as over-engineering or not applicable. |
+
+**Wave 1 — Engine + Slack (2 parallel sessions, ~2 weeks):**
+
+| Session | Features | New files created | Shared files modified | Estimated time |
+|---------|----------|-------------------|----------------------|----------------|
+| **1** | #29 Multi-Model → #31 Abstraction → #30 Cost Upgrade | `core/model-router.ts`, `core/engine/engine-interface.ts`, `core/engine/sdk-adapter.ts` | `agent-runner.ts` (SDK call layer), `cost-tracker.ts` (pricing) | 2 weeks |
+| **2** | #18 Slack Bot | `integrations/slack/bot.ts`, `integrations/slack/channel-mapper.ts`, `integrations/slack/message-bridge.ts`, `cli/slack.ts` | Almost none — builds in its own new `integrations/` directory | 1-1.5 weeks |
+
+**Wave 2 — Agent Intelligence + Tasks (2 parallel sessions, ~2 weeks):**
+
+| Session | Features | New files created | Shared files modified | Estimated time |
+|---------|----------|-------------------|----------------------|----------------|
+| **3** | #5 Autonomy + #24 Escalation + #3 Skills | `core/autonomy-matrix.ts`, `core/escalation.ts`, `core/skills.ts` | `agents.ts` (new fields), all soul.md template files | 2 weeks |
+| **4** | #6 Task/Project Management | `core/task-manager.ts`, `cli/tasks.ts` | Uses hook system only — no direct shared file edits | 1.5 weeks |
+
+> **Why #5, #24, and #3 are grouped in one session:** All three need to modify `agents.ts` (adding decision authority, escalation rules, and skills to agent definitions) and all agent soul.md template files. Keeping them in one session means one Claude Code agent has full context of all those changes — zero risk of one overwriting the other.
+
+**Wave 3 — Knowledge + Long Tasks + HR (3 parallel sessions, ~1.5 weeks):**
+
+| Session | Features | BLOCKED BY | New files created | Estimated time |
+|---------|----------|------------|-------------------|----------------|
+| **5** | #7 Knowledge Management | #5 Autonomy (Session 3) | `core/knowledge.ts`, `cli/knowledge.ts` | 1.5 weeks |
+| **6** | #28 Long Autonomous Task Chains | #6 Task Mgmt (Session 4) | `core/project-planner.ts` | 1.5 weeks |
+| **7** | #9 HR System | #5 Autonomy (Session 3) | `core/hr.ts`, `cli/hr.ts` | 1 week |
+
+> **Why 3 parallel sessions are safe here:** Session 5 creates `knowledge.ts`. Session 7 creates `hr.ts`. These are completely separate new files. Session 6 modifies `background-worker.ts` and `background-manager.ts` — files that Sessions 5 and 7 don't touch. The only shared touchpoint is registering hooks, which each session does independently.
+
+### Integration Points — Phase 2
+
+> **Why integration is lighter with the hook system:** Because the prep step created a plugin architecture, most features just create their own files and register with the core. The main shared files (`agent-runner.ts`, `config.ts`, `cost-tracker.ts`) stay mostly untouched after Wave 0. This means there's no big scary merge — just verification that everything works together.
+
+- **After Wave 0:** **COMPLETE.** Hook system compiles clean (`tsc --noEmit` zero errors). Peer-reviewed and hardened. Existing functionality unchanged (no extensions registered yet — guards are purely defensive).
+- **After Wave 1:** Verify the engine abstraction didn't break existing commands (`aicib start`, `aicib brief`). Verify Slack bot connects independently. 1-2 hours.
+- **After Wave 2:** Check that autonomy rules, escalation, skills, and task management all register correctly through the hook system. Test interactions (e.g., can a task trigger an escalation?). Half a day.
+- **After Wave 3:** Final integration. All 11 features working together end-to-end. Test the full flow: send a brief, watch autonomy rules kick in, tasks get created, knowledge base gets updated, Slack shows activity. Budget a full day.
 
 ---
 
-## Phase 3: Advanced Systems (Weeks 7-9)
+## Phase 3: Advanced Systems (Weeks 8-10)
 
 **Goal:** The differentiating features that make us unique — Board of Directors, connecting to real tools via MCP, company events, reports, and safety controls for external actions.
 
@@ -244,7 +436,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 ---
 
-## Phase 4: Interfaces & Scale (Weeks 10-13)
+## Phase 4: Interfaces & Scale (Weeks 11-14)
 
 **Goal:** Web dashboard, Telegram integration, and production polish.
 
@@ -262,6 +454,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 | 7+ | Knowledge Management (semantic search) | Upgrade the knowledge system to understand meaning, not just exact words. Uses Qdrant (a vector database) so when you search "marketing spend," it also finds docs about "advertising budget." | Large (1-1.5 weeks) |
 | 21 | Security & Vault | Encrypted storage for sensitive data (API keys, passwords, tokens). Role-based access so agents only see what they're authorized to see — like how not every employee has the company credit card. | Medium (1 week) |
 | 22+ | Audit Trail with AI summaries | A complete record of everything every agent ever did, with AI-generated daily/weekly/monthly summaries. Like having a secretary who takes notes on every meeting and action. | Medium (1 week) |
+| 32 | Agent Engine Evaluation | With real users and real data, evaluate whether the Agent SDK abstraction layer should be swapped to a different engine. Questions to answer: Is the 12-second startup delay hurting user experience? Are users asking for non-Claude models? Is the proprietary license causing adoption friction? Are API costs too high without multi-model routing? If yes to any, the abstraction layer from Phase 2 makes switching straightforward. Pi's architecture or a custom engine could be the migration target. See `implementation/Research-Pi-vs-AgentSDK.md`. | Small (0.5 weeks) |
 
 ### Parallel Sessions — Phase 4
 
@@ -275,7 +468,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 ---
 
-## Phase 5: Monetization & Enterprise (Weeks 14+)
+## Phase 5: Monetization & Enterprise (Weeks 15+)
 
 **Goal:** Turn the open-source tool into a business — cloud-hosted version, billing, enterprise features.
 
@@ -385,6 +578,8 @@ LAYER 2: Intelligence (makes agents smart, not just functional)
   [26,27,6] ──> [28] Long Autonomous Task Chains (multi-hour projects) ← NEW Phase 2
   [10] ──> [29] Multi-Model Support (LiteLLM + model routing) ← NEW Phase 2
   [10,29] ──> [30] Cost Tracking Upgrade (API-reported costs + configurable pricing) ← NEW Phase 2
+  [29] ──> [31] Agent Engine Abstraction Layer (thin interface for future engine flexibility) ← NEW Phase 2
+  [31,16] ──> [32] Agent Engine Evaluation (assess switching based on real user data) ← NEW Phase 4
 
 LAYER 3: Organization (makes it feel like a real company)
   [5,10] ──> [9] HR System (hiring, reviews, lifecycle)

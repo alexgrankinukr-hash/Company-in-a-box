@@ -194,6 +194,44 @@ Track edge cases discovered during implementation.
 **Handling:** Foreground jobs are identified by `[foreground]` prefix on directive. Prefix stripped for display.
 **User sees:** "Foreground Job #N" header instead of "Background Job #N"
 
+## Hook System / Extension Registries (Wave 0)
+
+### Config Extension — Reserved Key
+
+**Scenario:** A feature module calls `registerConfigExtension({ key: 'agents', ... })` using a key that belongs to the core config
+**Handling:** `registerConfigExtension()` checks against `RESERVED_CONFIG_KEYS` set and throws immediately
+**User sees:** Developer error at startup: `Config extension key "agents" is reserved`
+
+### Config Extension — Duplicate Key
+
+**Scenario:** A feature module is imported twice, or two features use the same config key
+**Handling:** `registerConfigExtension()` checks for existing key in the registry and throws
+**User sees:** Developer error at startup: `Config extension key "autonomy" is already registered`
+
+### Config Extension — Partial YAML Section
+
+**Scenario:** User's YAML has `autonomy: { level: high }` but the extension defaults include `{ enabled: true, level: 'medium' }`
+**Handling:** `validateConfig()` shallow-merges defaults with YAML values: `{ ...defaults, ...yamlValues }`
+**User sees:** Nothing — missing fields silently filled with defaults. The merged result is `{ enabled: true, level: 'high' }`
+
+### Config — Unknown YAML Keys Preserved
+
+**Scenario:** User manually adds a custom section to their YAML (e.g., `my_notes: ...`), or a process saves config without importing all feature modules
+**Handling:** `validateConfig()` collects unrecognized top-level keys into `extensions`. `saveConfig()` flattens them back to top-level YAML.
+**User sees:** Nothing — their custom sections survive load/save round-trips
+
+### Hook Registration — Duplicate Name
+
+**Scenario:** `registerContextProvider('task-status', fn)` called twice (module imported multiple times)
+**Handling:** Second call throws: `Context provider "task-status" is already registered`
+**User sees:** Developer error at startup. Same pattern for `registerMessageHandler()` and `registerTable()`.
+
+### Message Handler — Runtime Error
+
+**Scenario:** A registered message handler (e.g., Slack bridge) throws during message processing
+**Handling:** `notifyMessageHandlers()` catches the error and logs: `Warning: Message handler "slack-bridge" failed: [error]`
+**User sees:** Warning in terminal. Main session flow continues unaffected.
+
 ### Cost Recording — Unknown Model
 
 **Scenario:** SDK returns a model ID that doesn't contain "opus", "sonnet", or "haiku" (e.g., a new model family)
