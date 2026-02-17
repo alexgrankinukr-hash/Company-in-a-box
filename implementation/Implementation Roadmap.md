@@ -425,7 +425,32 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 ---
 
-## Phase 3: Advanced Systems (Weeks 8-10)
+## Phase 2.5: Web UI Dashboard (Weeks 8-11)
+
+**Goal:** Add a visual web dashboard that runs locally alongside the CLI. Type `aicib ui` and a webpage opens in your browser showing your entire AI company visually — org charts, cost charts, task boards, agent profiles, and more. Like going from DOS to Windows.
+
+> **Why now:** With 46 CLI commands, 22 database tables, and 10 feature areas, the terminal is getting hard to manage. A visual dashboard makes testing, monitoring, and configuration dramatically easier. Building it now means Phase 3 features ship with UI from day one.
+
+> **Architecture:** The dashboard is a Next.js app living in `aicib/ui/` that reads directly from the same SQLite database (`.aicib/state.db`) the CLI uses. No cloud servers, no login page, no database migration. Just a visual window into the same data.
+
+> **Full details:** See `implementation/Phase-2.5-Web-UI-Plan.md` for the complete plan.
+
+**Summary:**
+
+| Wave | Sessions | What gets built |
+|------|----------|----------------|
+| **A: Foundation** | 1 session | Next.js scaffolding, layout shell, `aicib ui` command, home dashboard with KPI cards, SSE live updates |
+| **B: Core Dashboards** | 3 parallel sessions | Cost charts + budget gauges, Task Kanban board, Activity feed + Journal timeline + Brief input |
+| **C: Management Views** | 3 parallel sessions | HR profiles + review scorecards, Knowledge wiki + decision log, Interactive org chart + agent profiles |
+| **D: Config + Polish** | 2 parallel sessions | Settings panel (replaces YAML editing), Project pipeline view, UI polish + mobile + Cmd+K |
+
+**Total:** 9 sessions, ~3-4 weeks. After this phase, every feature from Phases 1-2 has a visual interface.
+
+**Impact on later phases:** Phase 3 features now include UI from day one (each session creates `app/<feature>/page.tsx` alongside the backend). Phase 4's Web UI feature (#16) is effectively done — Phase 4 shrinks significantly.
+
+---
+
+## Phase 3: Advanced Systems (Weeks 12-14)
 
 **Goal:** The differentiating features that make us unique — Board of Directors, connecting to real tools via MCP, company events, reports, and safety controls for external actions.
 
@@ -460,7 +485,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 ---
 
-## Phase 4: Interfaces & Scale (Weeks 11-14)
+## Phase 4: Interfaces & Scale (Weeks 15-18)
 
 **Goal:** Web dashboard, Telegram integration, and production polish.
 
