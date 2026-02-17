@@ -11,10 +11,11 @@
  * Pattern follows background-worker.ts but runs indefinitely.
  */
 
-// Side-effect imports: register Slack, task, and intelligence hooks before anything loads
+// Side-effect imports: register Slack, task, intelligence, and knowledge hooks before anything loads
 import "./register.js";
 import "../../core/task-register.js";
 import "../../core/intelligence-register.js";
+import "../../core/knowledge-register.js";
 
 import { App } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";

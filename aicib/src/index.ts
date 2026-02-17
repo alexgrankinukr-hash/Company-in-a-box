@@ -5,6 +5,7 @@
 import "./integrations/slack/register.js";
 import "./core/task-register.js";
 import "./core/intelligence-register.js";
+import "./core/knowledge-register.js";
 
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
@@ -27,6 +28,19 @@ import {
   tasksUpdateCommand,
   tasksReviewCommand,
 } from "./cli/tasks.js";
+import {
+  knowledgeCommand,
+  knowledgeWikiCommand,
+  knowledgeWikiShowCommand,
+  knowledgeWikiCreateCommand,
+  knowledgeWikiHistoryCommand,
+  knowledgeDecisionsCommand,
+  knowledgeDecisionsShowCommand,
+  knowledgeJournalsCommand,
+  knowledgeArchivesCommand,
+  knowledgeArchivesShowCommand,
+  knowledgeSearchCommand,
+} from "./cli/knowledge.js";
 
 const program = new Command();
 
@@ -186,5 +200,78 @@ tasks
 tasks
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(tasksCommand);
+
+// --- Knowledge management ---
+const knowledge = program.command("knowledge").description("Company knowledge base: wiki, journals, decisions, archives");
+const knowledgeWiki = knowledge.command("wiki").description("Company wiki articles");
+knowledgeWiki
+  .command("show <slug>")
+  .description("Show a wiki article")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeWikiShowCommand);
+knowledgeWiki
+  .command("create")
+  .description("Create a wiki article")
+  .option("--slug <slug>", "Article slug (URL-friendly identifier)")
+  .option("--title <title>", "Article title")
+  .option("--section <section>", "Section (overview, products, policies, brand, customers, competitors, general)")
+  .option("--content <content>", "Article content")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeWikiCreateCommand);
+knowledgeWiki
+  .command("history <slug>")
+  .description("Show version history for an article")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeWikiHistoryCommand);
+// Default: list articles when bare `aicib knowledge wiki` is run
+knowledgeWiki
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeWikiCommand);
+
+const knowledgeDecisions = knowledge.command("decisions").description("Decision audit log");
+knowledgeDecisions
+  .command("show <id>")
+  .description("Show decision detail")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeDecisionsShowCommand);
+// Default: list decisions
+knowledgeDecisions
+  .option("--status <status>", "Filter by status (active, superseded, reversed)")
+  .option("--limit <n>", "Max entries to show", "20")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeDecisionsCommand);
+
+knowledge
+  .command("journals")
+  .description("Agent learning journals")
+  .option("--agent <role>", "Filter by agent role")
+  .option("--type <type>", "Filter by entry type (task_outcome, lesson, pattern, mistake, reflection)")
+  .option("--limit <n>", "Max entries to show", "20")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeJournalsCommand);
+
+const knowledgeArchives = knowledge.command("archives").description("Project archives");
+knowledgeArchives
+  .command("show <id>")
+  .description("Show archive detail")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeArchivesShowCommand);
+// Default: list archives
+knowledgeArchives
+  .option("--status <status>", "Filter by status (completed, cancelled, on_hold)")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeArchivesCommand);
+
+knowledge
+  .command("search <keyword>")
+  .description("Search across all knowledge (wiki, journals, decisions, archives)")
+  .option("--limit <n>", "Max results", "20")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeSearchCommand);
+
+// Default: show dashboard when bare `aicib knowledge` is run
+knowledge
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(knowledgeCommand);
 
 program.parse();

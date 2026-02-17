@@ -592,3 +592,77 @@ Track edge cases discovered during implementation.
 **Scenario:** Agent says "Completed task #5 and task #3" in a single message.
 **Handling:** NL patterns use `.matchAll()` with the `g` flag instead of `.match()` (first match only). Both task #5 and #3 are updated to "done".
 **User sees:** Both tasks updated — not just the first one mentioned.
+
+## Knowledge Management (Wave 3 Session 5)
+
+### Knowledge — Wiki Slug Uniqueness
+
+**Scenario:** Agent or user tries to create a wiki article with a slug that already exists.
+**Handling:** `wiki_articles.slug` has a UNIQUE constraint. `createArticle()` in the CLI checks for existing slug before insert. The DB constraint provides a safety net for the message handler path.
+**User sees:** CLI: "Article with slug 'X' already exists." Message handler: silent skip (best-effort).
+
+### Knowledge — Wiki Update Snapshots Previous Version
+
+**Scenario:** Wiki article is updated — previous content must be preserved.
+**Handling:** `updateArticle()` wraps the version snapshot INSERT and article UPDATE in a `db.transaction()` to ensure atomicity. If a crash occurs between the two statements, neither takes effect — no orphan version rows.
+**User sees:** `aicib knowledge wiki history <slug>` shows all previous versions.
+
+### Knowledge — Natural Language False Positive Prevention
+
+**Scenario:** Agent says "I learned a lot" (too short to be useful as a journal entry).
+**Handling:** Natural language patterns require at least 10 characters in the captured text. Short matches like "I learned a lot" (matched text: "a lot" = 5 chars) are silently skipped.
+**User sees:** Nothing — no spurious journal entries created.
+
+### Knowledge — Message Handler projectDir Bridging
+
+**Scenario:** The knowledge message handler needs `projectDir` but the handler API doesn't pass it.
+**Handling:** Same pattern as task-register.ts: context provider sets module-level `lastProjectDir` during each session. Message handler reads it. One session per process.
+**User sees:** Nothing — KNOWLEDGE:: markers in agent output are processed correctly.
+
+### Knowledge — Flush Failures Logged
+
+**Scenario:** Database write fails during debounced knowledge update flush (disk full, table locked).
+**Handling:** Individual update failures logged via `console.warn("Knowledge update failed:", e)`. Other queued updates continue.
+**User sees:** Warning in terminal. Agent session not interrupted.
+
+### Knowledge — Fresh Project (No Tables Yet)
+
+**Scenario:** User runs `aicib knowledge` before ever running `aicib start`.
+**Handling:** `KnowledgeManager` constructor calls `ensureTables()` with `CREATE TABLE IF NOT EXISTS` for all 5 tables + indexes. Safe to run alongside CostTracker.
+**User sees:** Empty knowledge dashboard — no crash.
+
+### Knowledge — Context Provider Returns Empty for New Projects
+
+**Scenario:** No wiki articles, decisions, or archives exist yet.
+**Handling:** Context provider checks if each formatted section is empty. If all are empty, returns `""` — no context injected.
+**User sees:** Nothing — no empty headers in agent prompt.
+
+### Knowledge — All Features Disabled
+
+**Scenario:** User sets `knowledge.enabled: false` in config.
+**Handling:** Context provider returns `""`. Message handler returns immediately without parsing. CLI commands still work (they access the DB directly).
+**User sees:** No knowledge context in agent prompts. CLI still functional for manual management.
+
+### Knowledge — Search With Empty Keyword
+
+**Scenario:** Internal search with empty string (used by journals listing).
+**Handling:** `LIKE '%%'` matches all rows. Results still respect the limit parameter.
+**User sees:** All entries up to the limit.
+
+### Knowledge — Archive Search With Null completed_at
+
+**Scenario:** Searching returns `on_hold` archives that have no `completed_at` date. `new Date("").getTime()` produces NaN, causing undefined sort order.
+**Handling:** Archive search falls back to `started_at` when `completed_at` is null. The sort comparator uses `|| 0` as a final fallback for truly empty dates, placing them at the end.
+**User sees:** Search results in consistent chronological order regardless of archive status.
+
+### Knowledge — Context Provider DB Error
+
+**Scenario:** Knowledge database can't be opened during context injection (e.g., first run before `aicib start`, corrupted DB, permissions).
+**Handling:** Context provider catches the error and logs via `console.warn("Knowledge context error:", e)`. Returns empty string — agent starts without knowledge context.
+**User sees:** Warning in terminal. Agent session starts normally without knowledge context.
+
+### Knowledge — Debounced Queue Multiple Markers
+
+**Scenario:** Agent outputs multiple KNOWLEDGE:: markers in a single message.
+**Handling:** All markers are parsed and queued. The 500ms debounce timer batches them into a single DB flush.
+**User sees:** Nothing — all entries created efficiently in one batch.

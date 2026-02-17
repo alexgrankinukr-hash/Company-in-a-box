@@ -11,9 +11,10 @@
  * background_jobs row with the outcome.
  */
 
-// Side-effect imports: register task + intelligence hooks before config/DB
+// Side-effect imports: register task + intelligence + knowledge hooks before config/DB
 import "./task-register.js";
 import "./intelligence-register.js";
+import "./knowledge-register.js";
 
 import { loadConfig } from "./config.js";
 import { CostTracker } from "./cost-tracker.js";
