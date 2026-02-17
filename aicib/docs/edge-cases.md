@@ -395,6 +395,50 @@ Track edge cases discovered during implementation.
 **Handling:** Department channel routing checks `!slackConfig.chat_enabled` and returns early. Message is silently ignored.
 **User sees:** No response. Consistent with CEO channel behavior when chat is disabled.
 
+## HR System
+
+### HR Review — NaN Score Propagation
+
+**Scenario:** CLI user passes non-numeric score (e.g., `aicib hr review cto --task abc`)
+**Handling:** After `parseFloat`, each score is checked with `Number.isFinite()`. Invalid values trigger an error message and `process.exit(1)`.
+**User sees:** "Error: Invalid score for --task: 'abc'. Must be a number."
+
+### HR Promote/Demote — Missing --from Level
+
+**Scenario:** User runs `aicib hr promote cto --to autonomous` without specifying `--from`
+**Handling:** `resolveFromLevel()` checks latest promoted/demoted event → onboarding phase autonomy → "unknown"
+**User sees:** Promotion recorded with auto-resolved from-level (e.g., "standard -> autonomous")
+
+### HR Improve --resolve — Wrong Agent
+
+**Scenario:** `aicib hr improve cfo --resolve 1` but plan #1 belongs to cto
+**Handling:** After `updateImprovementPlan()`, checks `plan.agent_role !== role`. Prints mismatch error.
+**User sees:** "Error: Plan #1 belongs to 'cto', not 'cfo'."
+
+### HR Hire — Mentor Dropped
+
+**Scenario:** Agent outputs `HR::HIRE role=designer department=product mentor=cto`
+**Handling:** `recordHire()` accepts `mentor` param, passes to `startOnboarding()`. Mentor stored in `hr_onboarding.mentor`.
+**User sees:** Nothing — mentor correctly associated with onboarding record.
+
+### HR NL — "completed onboarding" Does Full Completion
+
+**Scenario:** Agent says "completed onboarding for designer"
+**Handling:** Dispatches `onboard_complete` action → `hr.completeOnboarding()`. Jumps to phase 4 and sets `completed_at`.
+**User sees:** Nothing — agent is fully onboarded, not just advanced one phase.
+
+### HR Review Due — Fired/Archived Agents Excluded
+
+**Scenario:** Dashboard checks for review-due agents, but some agents are fired or archived
+**Handling:** `getAgentsDueForReview()` checks `getAgentState()` for "archived"/"stopped" and checks for "fired" events. Excluded agents don't appear in due list.
+**User sees:** Only active agents appear as review-due on the dashboard.
+
+### HR Dashboard — Duplicate DB Connection
+
+**Scenario:** Dashboard command creates multiple HRManager instances for the same project
+**Handling:** Fixed: uses single `hr` instance for all queries (listOnboarding, getEvents, getAgentsDueForReview).
+**User sees:** Nothing — internal optimization, same dashboard output.
+
 ## Hook System / Extension Registries (Wave 0)
 
 ### Config Extension — Reserved Key
