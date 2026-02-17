@@ -66,7 +66,11 @@ Cost: $1.4700 | Turns: 5 | Duration: 45.2s
 - "A background brief is already running" → Wait for it to finish or run `aicib stop` to cancel
 - "Stale job #N auto-healed" → A previous background worker crashed. AICIB detected it, cleaned it up, and proceeds with your new brief automatically. No action needed.
 
-### 2b. `aicib brief --background "your directive"`
+### 2b. `aicib brief -p "your project brief"`
+
+For big, multi-step goals. Creates an autonomous project that the CEO decomposes into phases and executes sequentially — all in the background. See [Projects](projects.md) for full details.
+
+### 2c. `aicib brief --background "your directive"`
 
 Like sending an email to your CEO instead of standing in their office. Sends the directive and gives you your terminal back immediately. The team works in the background.
 
@@ -92,7 +96,7 @@ View full logs:  aicib logs
 5. When done, the job is marked as `completed` with cost/turns/duration
 6. If something goes wrong, the job is marked as `failed` with the error message
 
-### 2c. `aicib logs`
+### 2d. `aicib logs`
 
 Shows the full conversation log from the most recent background job.
 

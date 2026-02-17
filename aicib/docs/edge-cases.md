@@ -631,6 +631,50 @@ Track edge cases discovered during implementation.
 **Handling:** Context provider returns `""` immediately when `maxTasks === 0`. `listTasks()` also guards with `limit != null && limit > 0` so `0` doesn't become unlimited.
 **User sees:** No task board in agent prompts. Tasks still exist in DB and are accessible via `aicib tasks`.
 
+## Projects (Long Autonomous Task Chains)
+
+### Project — sendBrief() Throws Mid-Phase
+
+**Scenario:** `sendBrief()` throws during phase execution (network error, API failure, cost limit mid-run).
+**Handling:** Try/catch around the entire phase execution block. Marks the current phase as `"failed"` with the error message and `completed_at`. Adds prior accumulated costs to project totals. Marks project as `"failed"`. Breaks out of loop — normal completion logic updates the background job.
+**User sees:** Phase shows as FAILED in `aicib project status`. `aicib logs` shows the error.
+
+### Project — External Cancellation While Phase Running
+
+**Scenario:** User runs `aicib project cancel` while a phase is actively executing.
+**Handling:** Cancel sets project status to `"cancelled"` in DB and sends SIGTERM to the worker. At the top of each loop iteration, the worker re-reads project status. If `"cancelled"` or `"paused"`, it breaks out. Even if SIGTERM delivery fails (race, permission), the DB check catches it.
+**User sees:** `aicib project status` shows project as "cancelled". Worker stops after current phase's `sendBrief()` returns.
+
+### Project — Cancel Uses Correct Session ID
+
+**Scenario:** User runs `aicib stop` then `aicib start` (new session), then `aicib project cancel`. The active CLI session differs from the session that spawned the project.
+**Handling:** `projectCancelCommand()` looks up the background job using the project's own `session_id` (from the `projects` table), not the current CLI session.
+**User sees:** Cancel works correctly regardless of session changes.
+
+### Project — Cost Under-Counting on Failed Phase
+
+**Scenario:** A phase is rejected 3 times (max retries). Each attempt costs $2. Only the last attempt's cost was being recorded in the project totals.
+**Handling:** The failed-phase branch now computes accumulated totals from all retry attempts (same pattern as the approved-phase branch): `phaseTotalCost = phase.cost_usd + phaseResult.totalCostUsd`. These accumulated values are used in both `updatePhase()` and `updateProject()`.
+**User sees:** `aicib project status` shows correct total cost including all retry attempts.
+
+### Project — Duplicate Phase Numbers
+
+**Scenario:** A bug or race condition tries to insert two phases with the same `phase_number` for the same project.
+**Handling:** `UNIQUE(project_id, phase_number)` constraint on the `project_phases` table. SQLite rejects the duplicate insert.
+**User sees:** Error during planning phase. Project fails with clear error message.
+
+### Project — Daily Cost Limit Hit Between Phases
+
+**Scenario:** Phase 3 completes but today's total cost now exceeds the daily limit.
+**Handling:** Cost limit checked at the top of each loop iteration before starting the next phase. Project status set to `"paused"`.
+**User sees:** `aicib project status` shows "paused". Can resume tomorrow or after increasing the limit.
+
+### Project — SIGTERM Between Phases
+
+**Scenario:** `aicib stop` sends SIGTERM while the worker is between phases (e.g., checking loop conditions).
+**Handling:** `sigtermReceived` flag is set. Checked at the top of each loop iteration. Project status set to `"paused"`.
+**User sees:** Project shows as "paused". Background job shows as "completed" (graceful stop).
+
 ### Tasks — Natural Language Multiple Task References
 
 **Scenario:** Agent says "Completed task #5 and task #3" in a single message.
