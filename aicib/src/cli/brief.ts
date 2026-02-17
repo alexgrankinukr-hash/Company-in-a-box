@@ -12,6 +12,7 @@ import { formatMessageWithColor } from "../core/output-formatter.js";
 import type { EngineSystemMessage } from "../core/engine/index.js";
 import {
   startBackgroundBrief,
+  startBackgroundProject,
   isProcessRunning,
 } from "../core/background-manager.js";
 import { header, formatUSD, costColor, formatPercent } from "./ui.js";
@@ -19,6 +20,7 @@ import { header, formatUSD, costColor, formatPercent } from "./ui.js";
 interface BriefOptions {
   dir: string;
   background?: boolean;
+  project?: boolean;
 }
 
 export async function briefCommand(
@@ -157,7 +159,23 @@ export async function briefCommand(
       }
     }
 
-    if (options.background) {
+    if (options.project) {
+      // --- Project mode: always runs in background (multi-hour operation) ---
+      const { projectId, jobId, pid } = startBackgroundProject(
+        directive,
+        projectDir,
+        config,
+        activeSession.sdkSessionId,
+        activeSession.sessionId,
+        costTracker
+      );
+
+      console.log(chalk.green("  Project created. CEO is planning phases.\n"));
+      console.log(chalk.dim(`  Project #${projectId} | Job #${jobId} | PID ${pid}`));
+      console.log(chalk.dim("  Check progress:  aicib project status"));
+      console.log(chalk.dim("  View full logs:  aicib logs"));
+      console.log(chalk.dim("  Cancel project:  aicib project cancel\n"));
+    } else if (options.background) {
       // --- Background mode: spawn worker and return immediately ---
       const { jobId, pid } = startBackgroundBrief(
         directive,

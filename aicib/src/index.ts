@@ -5,6 +5,7 @@
 import "./integrations/slack/register.js";
 import "./core/task-register.js";
 import "./core/intelligence-register.js";
+import "./core/project-register.js";
 
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
@@ -27,6 +28,11 @@ import {
   tasksUpdateCommand,
   tasksReviewCommand,
 } from "./cli/tasks.js";
+import {
+  projectStatusCommand,
+  projectListCommand,
+  projectCancelCommand,
+} from "./cli/project.js";
 
 const program = new Command();
 
@@ -55,6 +61,7 @@ program
   .command("brief <directive>")
   .description("Send a directive to the CEO")
   .option("-b, --background", "Run in background (returns immediately)")
+  .option("-p, --project", "Run as multi-phase autonomous project")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(briefCommand);
 
@@ -186,5 +193,27 @@ tasks
 tasks
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(tasksCommand);
+
+// --- Project management ---
+const project = program.command("project").description("Manage long-running autonomous projects");
+project
+  .command("status")
+  .description("Show active project progress")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(projectStatusCommand);
+project
+  .command("list")
+  .description("List all projects")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(projectListCommand);
+project
+  .command("cancel")
+  .description("Cancel the active project")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(projectCancelCommand);
+// Default action: show status when bare `aicib project` is run
+project
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(projectStatusCommand);
 
 program.parse();

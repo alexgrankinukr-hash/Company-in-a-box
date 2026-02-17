@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CostTracker, type BackgroundJob } from "./cost-tracker.js";
 import type { AicibConfig } from "./config.js";
+import { ProjectPlanner } from "./project-planner.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,6 +70,50 @@ export function startBackgroundBrief(
   costTracker.updateBackgroundJob(jobId, { pid });
 
   return { jobId, pid };
+}
+
+export interface BackgroundProjectResult {
+  projectId: number;
+  jobId: number;
+  pid: number;
+}
+
+/**
+ * Creates a project record, a background_jobs row with [PROJECT::<id>] prefix,
+ * and spawns a detached worker process. The worker auto-detects project mode.
+ */
+export function startBackgroundProject(
+  brief: string,
+  projectDir: string,
+  _config: AicibConfig,
+  sdkSessionId: string,
+  sessionId: string,
+  costTracker: CostTracker
+): BackgroundProjectResult {
+  // Create the project record
+  const pp = new ProjectPlanner(projectDir);
+  let projectId: number;
+  try {
+    // Use first 80 chars of brief as title
+    const title = brief.length > 80 ? brief.slice(0, 77) + "..." : brief;
+    const project = pp.createProject(sessionId, title, brief);
+    projectId = project.id;
+  } finally {
+    pp.close();
+  }
+
+  // Create background job with [PROJECT::<id>] prefixed directive
+  const directive = `[PROJECT::${projectId}] ${brief}`;
+  const { jobId, pid } = startBackgroundBrief(
+    directive,
+    projectDir,
+    _config,
+    sdkSessionId,
+    sessionId,
+    costTracker
+  );
+
+  return { projectId, jobId, pid };
 }
 
 /**

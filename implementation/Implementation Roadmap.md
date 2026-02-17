@@ -314,10 +314,13 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 ║                NEEDS: #5 Autonomy (from Session 3)                             ║
 ║                Creates: core/knowledge.ts, cli/knowledge.ts                    ║
 ║                                                                                ║
-║    Session 6:  #28 Long Autonomous Task Chains                                 ║
+║    Session 6:  #28 Long Autonomous Task Chains  ✅                              ║
 ║                NEEDS: #6 Task Management (from Session 4)                      ║
-║                Creates: core/project-planner.ts                                ║
-║                Modifies: background-worker.ts, background-manager.ts           ║
+║                Creates: core/project-planner.ts, core/project-register.ts,     ║
+║                         cli/project.ts                                         ║
+║                Modifies: background-worker.ts, background-manager.ts,          ║
+║                          cli/brief.ts, index.ts                                ║
+║                Peer-reviewed: Cursor + Codex. 6 fixes applied.                 ║
 ║                                                                                ║
 ║    Session 7:  #9 HR System                                                    ║
 ║                NEEDS: #5 Autonomy (from Session 3)                             ║
@@ -396,7 +399,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 | Session | Features | BLOCKED BY | New files created | Estimated time |
 |---------|----------|------------|-------------------|----------------|
 | **5** | #7 Knowledge Management | #5 Autonomy (Session 3) | `core/knowledge.ts`, `cli/knowledge.ts` | 1.5 weeks |
-| **6** | #28 Long Autonomous Task Chains | #6 Task Mgmt (Session 4) | `core/project-planner.ts` | 1.5 weeks |
+| **6** | #28 Long Autonomous Task Chains | #6 Task Mgmt (Session 4) | `core/project-planner.ts`, `core/project-register.ts`, `cli/project.ts` | 1.5 weeks ✅ |
 | **7** | #9 HR System | #5 Autonomy (Session 3) | `core/hr.ts`, `cli/hr.ts` | 1 week |
 
 > **Why 3 parallel sessions are safe here:** Session 5 creates `knowledge.ts`. Session 7 creates `hr.ts`. These are completely separate new files. Session 6 modifies `background-worker.ts` and `background-manager.ts` — files that Sessions 5 and 7 don't touch. The only shared touchpoint is registering hooks, which each session does independently.
@@ -411,6 +414,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 - **After Wave 2, Session 3:** Agent Intelligence (#5 + #24 + #3) implemented and builds clean. 4 new files: `autonomy-matrix.ts` (5 autonomy levels, config + validation), `escalation.ts` (up-to-6-step chain from org structure, DB helpers), `skills.ts` (14 built-in skills, resolution, formatting), `intelligence-register.ts` (side-effect registration of 3 config extensions + 1 DB table + 3 context providers). Modified: `agents.ts` (3 new frontmatter fields), `index.ts` (1 import), all 8 soul.md template files. Core files NOT touched — all integration via hook APIs. Peer-reviewed by Cursor + Codex + Claude: 12 valid findings, 1 invalid, 1 already fixed. 8 code fixes applied (critical: skills scalar normalization; warnings: human_founder dedup, preloaded agents optimization, mutable default copy; suggestions: top-level type guards + array element checks on all 3 validators, non-null assertion removal, excess override warning). 4 documentation items added. 4 won't-fix with rationale. See docs: `docs/technical/agent-intelligence.md`, `docs/edge-cases.md`.
 - **After Wave 2, Session 4:** Task Management (#6) implemented and builds clean. 3 new files: `task-manager.ts` (TaskManager class, CRUD, blockers, subtasks, context scoring, priority algorithm), `task-register.ts` (hook registration: config extension + 3 DB tables + context provider + message handler with TASK:: markers and NL patterns), `cli/tasks.ts` (6 CLI commands: list, show, create, update, comment, board). Context provider injects role-aware task board into agent prompts. Message handler parses structured `TASK::CREATE/UPDATE/COMMENT` markers and natural language fallback patterns. Peer-reviewed by Claude + Cursor + Codex: 12 fixes applied — 2 critical (BFS cycle detection direction, background-worker/daemon missing hook imports), 2 high (duplicate comments, fresh-project crash), 5 medium (column whitelist, regex order, NL matchAll, foreign keys, Slack daemon imports), 3 low (empty title guard, max_context_tasks zero, catch logging).
 - **After Wave 2 (full):** Check that autonomy rules, escalation, skills, and task management all register correctly through the hook system. Test interactions (e.g., can a task trigger an escalation?). Half a day.
+- **After Wave 3, Session 6:** Long Autonomous Task Chains (#28) implemented and builds clean. 3 new files: `project-planner.ts` (ProjectPlanner class: DB schema for projects + phases, CRUD, plan parser, prompt builders for planning/execution/review/summary, prior context injection), `project-register.ts` (hook registration: config extension `projects:` with 7 settings, 2 DB tables with indexes, context provider for active project status, message handler for PROJECT::PAUSE/SKIP_PHASE markers), `cli/project.ts` (3 CLI commands: `project status` with phase-by-phase progress, `project list` with table view, `project cancel` with worker kill). Modified: `background-worker.ts` (new `runProjectLoop()` orchestration — planning→execution→review→verdict loop with SIGTERM handling, cost limit checks, retry logic), `background-manager.ts` (new `startBackgroundProject()` function), `cli/brief.ts` (`-p` flag triggers project mode), `index.ts` (CLI registration). Peer-reviewed by Cursor + Codex: 6 fixes applied — cost under-counting on failed phase after max retries (F1), orphaned "executing" phase when sendBrief throws (F2), worker doesn't check for external cancellation (F3), project cancel uses wrong session ID (F4), clarifying comment on paused→completed job mapping (F5), UNIQUE constraint on (project_id, phase_number) (F6). 8 findings deferred (per-phase budget enforcement, review/summary LLM cost tracking, duplicate DDL, execution_model config, separate reviewer model, one session per phase, DB columns for markers, resume command).
 - **After Wave 3:** Final integration. All 11 features working together end-to-end. Test the full flow: send a brief, watch autonomy rules kick in, tasks get created, knowledge base gets updated, Slack shows activity. Budget a full day.
 
 ---
