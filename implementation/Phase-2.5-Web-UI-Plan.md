@@ -213,6 +213,95 @@ aicib/package.json           (add ui scripts)
 
 ---
 
+## Wave A.5: Setup Wizard (1 session, ~2-3 days)
+
+### Session 1b: First-Run Setup + Company Creation from the Browser
+
+**Why this is needed:** Wave A built the dashboard, but it assumes the user already ran `aicib init` and `aicib start` from the terminal. Without a browser-based setup flow, non-technical users can't get started. This session adds a "Create Your AI Company" wizard so the entire experience — from zero to running dashboard — happens in the browser.
+
+**Goal:** When a user opens `localhost:3000` with no existing project, they see a guided setup wizard instead of an empty dashboard. The wizard creates the config, initializes the database, starts the agents, and lands the user on a live dashboard — all without touching the terminal.
+
+**What gets built:**
+
+1. **Auto-redirect middleware** (`middleware.ts`)
+   - On every page load, check if `aicib.config.yaml` exists in the project directory
+   - If no config → redirect to `/setup`
+   - If config exists but no active session → show "Start Company" prompt on dashboard
+   - If config + active session → normal dashboard
+
+2. **Setup wizard page** (`/setup`) — 4-step flow
+   - **Step 1 — Company Info:** Company name input, template selector (SaaS Startup shown as a card with description; more templates later). Clean, centered layout.
+   - **Step 2 — Team Builder:** Visual grid of default agents for the selected template (CEO, CTO, CFO, CMO + their workers). Each agent card shows role, description, model dropdown (haiku/sonnet/opus with price hints). Toggle to enable/disable agents. "Add Worker" button per department.
+   - **Step 3 — Budget:** Daily cost limit slider/input ($1–$500, default $50). Monthly cost limit slider/input ($10–$5000, default $500). Visual preview: "At these settings, you can run approximately X briefs per day."
+   - **Step 4 — Review & Launch:** Summary of all choices. "Create & Start Company" button. Shows what will happen: creates config file, initializes database, starts agent session.
+
+3. **API routes for setup**
+   - `POST /api/setup/init` — Creates `aicib.config.yaml` and `.aicib/` directory with `state.db`. Equivalent of `aicib init`. Accepts: company name, template, agent config overrides, budget settings. Returns success + config summary.
+   - `POST /api/setup/start` — Starts the agent session. Equivalent of `aicib start`. Spawns `aicib start -d <projectDir>` as subprocess (same pattern as the brief API). Returns session ID.
+   - `GET /api/setup/status` — Returns whether config exists, whether DB exists, whether a session is active. Used by the middleware and the wizard to know what step the user is on.
+   - `GET /api/setup/templates` — Returns available templates with their descriptions and default agent configs. Initially just "saas-startup" but extensible.
+
+4. **Dashboard "no session" state**
+   - When config exists but no active session: dashboard shows a prominent "Start Your Company" card at the top with a one-click start button
+   - When session becomes active: card disappears, KPI cards and agent grid populate
+
+5. **`aicib ui` update** — If no config exists in the project directory, still launch the dev server (don't error out). The setup wizard handles the first-run case.
+
+**Key design decisions:**
+- The wizard writes `aicib.config.yaml` directly (same YAML format as `aicib init` produces) — not a different format
+- Starting the company shells out to `aicib start` as a subprocess (same as the brief API) — avoids importing core modules into the UI
+- The wizard is mobile-friendly (centered card layout, large touch targets) since users might demo on tablets
+- Template selection is visual (cards with icons/descriptions) not a dropdown
+
+**Files created:**
+```
+aicib/ui/
+├── middleware.ts                    # Auto-redirect to /setup if no config
+├── app/setup/
+│   └── page.tsx                    # Setup wizard (multi-step form)
+├── components/
+│   ├── setup-wizard.tsx            # Wizard container with step navigation
+│   ├── step-company.tsx            # Step 1: company name + template
+│   ├── step-team.tsx               # Step 2: agent configuration
+│   ├── step-budget.tsx             # Step 3: cost limits
+│   └── step-review.tsx             # Step 4: review + launch
+├── app/api/setup/
+│   ├── init/route.ts               # POST — create config + DB
+│   ├── start/route.ts              # POST — start agent session
+│   ├── status/route.ts             # GET — check setup state
+│   └── templates/route.ts          # GET — available templates
+```
+
+**Files modified:**
+```
+aicib/ui/app/page.tsx               # Add "no session" start card
+aicib/src/cli/ui-launcher.ts        # Don't require config to exist
+```
+
+**Data flow:**
+```
+User opens localhost:3000
+       │
+       ▼
+  middleware.ts checks:
+  config exists? ──No──→ redirect to /setup
+       │
+      Yes
+       │
+       ▼
+  Dashboard loads normally
+  (session check happens client-side)
+```
+
+**Verification:**
+1. Delete `aicib.config.yaml` → open `localhost:3000` → redirected to `/setup`
+2. Complete wizard → config file created, DB initialized, session started
+3. Redirected to dashboard → KPI cards populated, agents showing
+4. Close browser, reopen → goes straight to dashboard (config exists)
+5. Run `aicib status` in terminal → confirms same session the wizard started
+
+---
+
 ## Wave B: Core Dashboards (3 parallel sessions, ~1 week)
 
 ### Session 2: Cost Dashboard
@@ -599,15 +688,35 @@ aicib/package.json           (add ui scripts)
 ║                                                                  ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
-║  WAVE A — FOUNDATION (1 session, ~3-4 days)                     ║
+║  WAVE A — FOUNDATION (1 session, ~3-4 days) ✅ COMPLETE          ║
 ║  ─────────────────────────────────                               ║
-║    Session 1:  Project Setup + Layout + Home Dashboard           ║
-║                Next.js scaffolding, sidebar, routing,            ║
-║                SQLite API layer, `aicib ui` command,             ║
+║    Session 1:  Project Setup + Layout + Home Dashboard ✅        ║
+║                Next.js 16 + Turbopack, shadcn/ui, Tailwind v4,  ║
+║                sidebar, routing, SQLite API layer, `aicib ui`,   ║
 ║                home page with KPI cards + activity feed,         ║
-║                SSE endpoint for live updates.                    ║
+║                SSE endpoint for live updates. 37 new UI files.   ║
 ║                                                                  ║
-║    MUST FINISH FIRST — everything else builds on this.          ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  WAVE A.5 — SETUP WIZARD (1 session, ~2-3 days) ✅ COMPLETE      ║
+║  ──────────────────────────────────────────                      ║
+║    Session 1b: First-Run Setup + Company Creation ✅             ║
+║                Auto-redirect if no config, 4-step wizard         ║
+║                (company → team → budget → launch),               ║
+║                /api/setup/ routes, "Start Company" card.         ║
+║                10 new UI files + 4 modified files.               ║
+║    Peer-reviewed by Cursor + Codex. 8 fixes applied:            ║
+║      - Config existence guard after init                         ║
+║      - Template/persona allowlist validation                     ║
+║      - Regex escaping for role names                             ║
+║      - Budget $0 truthiness fix                                  ║
+║      - DB connection leak fix (try/finally)                      ║
+║      - Start button error feedback                               ║
+║      - Shared agent color utility (deduplicated)                 ║
+║      - Removed projectDir from status API response               ║
+║    Post-review fixes (user testing):                             ║
+║      - Fixed YAML parser regex (agents showed wrong models)      ║
+║      - Simplified Team Builder (model-only, no toggles)          ║
 ║                                                                  ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
@@ -663,14 +772,15 @@ aicib/package.json           (add ui scripts)
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
 ║  DEPENDENCY ARROWS:                                              ║
-║    Wave A ──→ Wave B (layout + API layer must exist first)       ║
-║    Wave A ──→ Wave C (same reason)                               ║
+║    Wave A ✅ ──→ Wave A.5 ✅ (need layout before wizard)         ║
+║    Wave A.5 ✅ ──→ Wave B (need working project to test)         ║
+║    Wave A.5 ✅ ──→ Wave C (same reason)                          ║
 ║    Wave B ──→ Wave D (core pages should exist before settings)   ║
 ║    Wave C ──→ Wave D (same reason)                               ║
 ║    Within each wave, sessions are fully parallel (different dirs)║
 ║                                                                  ║
 ║  ESTIMATED TOTAL: 3-4 weeks with parallel execution              ║
-║  (1 week per wave, Waves B+C can partially overlap)             ║
+║  (Wave A ✅, A.5 ✅, then B+C parallel, then D)                 ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
@@ -742,11 +852,12 @@ To keep the UI polished and consistent:
 
 | Wave | Sessions | Parallel? | Duration | What You Get |
 |------|----------|-----------|----------|-------------|
-| **A** | 1 session | No | 3-4 days | Working webapp with layout, home dashboard, live updates, `aicib ui` command |
+| **A** | 1 session | No | 3-4 days | Working webapp with layout, home dashboard, live updates, `aicib ui` command — **COMPLETE** |
+| **A.5** | 1 session | No | 2-3 days | Setup wizard: create company, configure team, set budget, launch — all from the browser — **COMPLETE** (peer-reviewed) |
 | **B** | 3 sessions | Yes | ~1 week | Cost charts, task Kanban, activity feed, journal timeline, brief input |
 | **C** | 3 sessions | Yes | ~1 week | HR profiles, knowledge wiki, interactive org chart, agent profiles |
 | **D** | 2 sessions | Yes | 3-4 days | Settings panel, project pipeline, polish, mobile, Cmd+K |
-| **Total** | **9 sessions** | | **~3-4 weeks** | **Full visual dashboard for every feature built so far** |
+| **Total** | **10 sessions** | | **~3-4 weeks** | **Full visual dashboard for every feature built so far** |
 
 After Phase 2.5, you'll be able to:
 - Open `localhost:3000` and see your entire AI company visually

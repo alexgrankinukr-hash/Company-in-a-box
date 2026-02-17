@@ -24,6 +24,7 @@ interface InitOptions {
   template: string;
   name: string;
   dir: string;
+  persona?: string;
 }
 
 export async function initCommand(options: InitOptions): Promise<void> {
@@ -59,19 +60,33 @@ export async function initCommand(options: InitOptions): Promise<void> {
     return;
   }
 
-  // Ask for personality preset
-  const { selectedPreset } = await inquirer.prompt([
-    {
-      type: "list",
-      name: "selectedPreset",
-      message: "What personality style should your AI team use?",
-      choices: VALID_PRESETS.map((p) => ({
-        name: `${p.charAt(0).toUpperCase() + p.slice(1)} — ${PRESET_DESCRIPTIONS[p]}${p === "professional" ? " (default)" : ""}`,
-        value: p,
-      })),
-      default: "professional",
-    },
-  ]);
+  // Use --persona flag if provided, otherwise prompt interactively
+  let selectedPreset: PersonaPreset;
+  if (options.persona) {
+    if (!VALID_PRESETS.includes(options.persona as PersonaPreset)) {
+      console.log(
+        chalk.red(
+          `  Error: Invalid persona "${options.persona}". Available: ${VALID_PRESETS.join(", ")}`
+        )
+      );
+      return;
+    }
+    selectedPreset = options.persona as PersonaPreset;
+  } else {
+    const answer = await inquirer.prompt([
+      {
+        type: "list",
+        name: "selectedPreset",
+        message: "What personality style should your AI team use?",
+        choices: VALID_PRESETS.map((p) => ({
+          name: `${p.charAt(0).toUpperCase() + p.slice(1)} — ${PRESET_DESCRIPTIONS[p]}${p === "professional" ? " (default)" : ""}`,
+          value: p,
+        })),
+        default: "professional",
+      },
+    ]);
+    selectedPreset = answer.selectedPreset;
+  }
 
   const spinner = ora("  Creating project structure...").start();
 

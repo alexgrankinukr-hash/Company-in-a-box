@@ -754,3 +754,77 @@ Track edge cases discovered during implementation.
 **Scenario:** Agent outputs multiple KNOWLEDGE:: markers in a single message.
 **Handling:** All markers are parsed and queued. The 500ms debounce timer batches them into a single DB flush.
 **User sees:** Nothing — all entries created efficiently in one batch.
+
+## Web Dashboard (Phase 2.5 Wave A)
+
+### Dashboard — No Database Found
+
+**Scenario:** User runs `aicib ui` before running `aicib init`, so `.aicib/state.db` doesn't exist.
+**Handling:** `lib/db.ts` throws an error with a clear message. API routes catch it and return HTTP 500 with `"Database not found at <path>. Run 'aicib init' and 'aicib start' first."`.
+**User sees:** Dashboard loads but KPI cards and agent grid show no data. Browser console shows the error. Brief submission shows an error message.
+
+### Dashboard — No Config File Found
+
+**Scenario:** `AICIB_PROJECT_DIR` is not set and the current directory has no `aicib.config.yaml` up the tree.
+**Handling:** `lib/config.ts` throws `"Could not find aicib.config.yaml"`. API routes return HTTP 500.
+**User sees:** Dashboard layout renders (sidebar, topbar) but content area shows error state. The `aicib ui` command sets `AICIB_PROJECT_DIR` so this mainly happens when running `npm run dev` manually from the wrong directory.
+
+### Dashboard — No Active Session
+
+**Scenario:** User opens dashboard after `aicib init` but before `aicib start`.
+**Handling:** `/api/status` returns `session: { active: false }`. Agent statuses default to "stopped". Brief submission returns HTTP 400 with `"No active session. Run 'aicib start' first."`.
+**User sees:** KPI Session card shows "Inactive" badge. All agents show gray "stopped" dots. Brief input shows error message when trying to send.
+
+### Dashboard — Brief Already Running
+
+**Scenario:** User submits a brief from the dashboard while another brief is still executing.
+**Handling:** `/api/brief` checks `background_jobs` for running jobs with an alive PID (via `process.kill(pid, 0)`). Returns HTTP 409.
+**User sees:** Error message: `"A brief is already running (job #N). Wait for it to complete."`.
+
+### Dashboard — Brief With Dead PID
+
+**Scenario:** A background job has status "running" in the DB but the process has actually exited (crashed, killed externally).
+**Handling:** `/api/brief` tries `process.kill(pid, 0)` which throws for dead processes. The check falls through and allows a new brief to be submitted.
+**User sees:** Brief submits successfully despite stale "running" job in DB.
+
+### Dashboard — SSE Database Locked
+
+**Scenario:** SQLite database is temporarily locked by a write operation from a running agent (e.g., cost recording, log writing).
+**Handling:** The SSE polling loop wraps all queries in try/catch. On lock errors, skips that poll cycle and tries again 2 seconds later. The 5s busy timeout on the connection handles brief locks.
+**User sees:** At most a 2-second delay in live updates. No visible error.
+
+### Dashboard — SSE Client Disconnect
+
+**Scenario:** User closes browser tab or navigates away while SSE stream is open.
+**Handling:** The `ReadableStream.cancel()` callback closes the read-only SQLite connection and stops the polling interval.
+**User sees:** Nothing — clean teardown on their end.
+
+### Dashboard — SSE Auto-Reconnect
+
+**Scenario:** SSE connection drops (server restart, network blip, Next.js hot reload during dev).
+**Handling:** `useSSE()` hook detects the error, sets `connected: false`, waits 3 seconds, then reconnects. New connection initializes fresh watermarks.
+**User sees:** Red "Disconnected" dot in topbar for ~3 seconds, then green "Live" returns. May miss events during disconnect but next `/api/status` fetch catches up.
+
+### Dashboard — Config Parsing Fallback
+
+**Scenario:** The YAML regex parser in `/api/status` fails to extract agents from an unusual config format (deeply nested workers, unusual indentation).
+**Handling:** If regex parsing finds no agents, falls back to DB-only agent statuses. Agents will show `model: "unknown"` and `department: <role>`.
+**User sees:** Agent cards still appear (from DB statuses) but without config-level info like model names.
+
+### Dashboard — Port Already In Use
+
+**Scenario:** User runs `aicib ui` but port 3000 is already taken by another app.
+**Handling:** Next.js dev server exits with `EADDRINUSE` error. The `ui-launcher.ts` forwards the exit code.
+**User sees:** Error in terminal: `"Error: listen EADDRINUSE: address already in use :::3000"`. Fix: use `aicib ui --port 3001`.
+
+### Dashboard — First Run Auto-Install
+
+**Scenario:** First time running `aicib ui` — `ui/node_modules/` doesn't exist.
+**Handling:** `ui-launcher.ts` checks for `node_modules/` and runs `npm install` with inherited stdio before starting the dev server.
+**User sees:** Terminal shows `"Installing UI dependencies (first run)..."` followed by npm install output. Takes ~15-20 seconds, then dashboard starts normally.
+
+### Dashboard — Tasks Table Missing
+
+**Scenario:** Database exists but `tasks` table hasn't been created yet (happens if `aicib start` was run before task management was added, or on very old DB versions).
+**Handling:** `/api/status` and `/api/stream` wrap task queries in try/catch. Return zero counts on error.
+**User sees:** Active Tasks KPI shows 0. No error visible.

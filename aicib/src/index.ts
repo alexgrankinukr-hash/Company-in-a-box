@@ -61,6 +61,7 @@ import {
   projectListCommand,
   projectCancelCommand,
 } from "./cli/project.js";
+import { uiCommand } from "./cli/ui-launcher.js";
 
 const program = new Command();
 
@@ -77,6 +78,7 @@ program
   .option("-t, --template <template>", "Company template to use", "saas-startup")
   .option("-n, --name <name>", "Company name", "MyStartup")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .option("--persona <preset>", "Personality preset (skip interactive prompt)")
   .action(initCommand);
 
 program
@@ -387,5 +389,13 @@ project
 project
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(projectStatusCommand);
+
+// --- Web UI ---
+program
+  .command("ui")
+  .description("Launch the web dashboard")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .option("-p, --port <port>", "Port number", "3000")
+  .action(uiCommand);
 
 program.parse();

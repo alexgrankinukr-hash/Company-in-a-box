@@ -437,14 +437,15 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 **Summary:**
 
-| Wave | Sessions | What gets built |
-|------|----------|----------------|
-| **A: Foundation** | 1 session | Next.js scaffolding, layout shell, `aicib ui` command, home dashboard with KPI cards, SSE live updates |
-| **B: Core Dashboards** | 3 parallel sessions | Cost charts + budget gauges, Task Kanban board, Activity feed + Journal timeline + Brief input |
-| **C: Management Views** | 3 parallel sessions | HR profiles + review scorecards, Knowledge wiki + decision log, Interactive org chart + agent profiles |
-| **D: Config + Polish** | 2 parallel sessions | Settings panel (replaces YAML editing), Project pipeline view, UI polish + mobile + Cmd+K |
+| Wave | Sessions | What gets built | Status |
+|------|----------|----------------|--------|
+| **A: Foundation** | 1 session | Next.js 16 + Turbopack, layout shell, `aicib ui` command, home dashboard with KPI cards, SSE live updates | **COMPLETE** |
+| **A.5: Setup Wizard** | 1 session | First-run setup wizard: create company, configure team, set budget, launch — all from the browser | Planned |
+| **B: Core Dashboards** | 3 parallel sessions | Cost charts + budget gauges, Task Kanban board, Activity feed + Journal timeline + Brief input | Planned |
+| **C: Management Views** | 3 parallel sessions | HR profiles + review scorecards, Knowledge wiki + decision log, Interactive org chart + agent profiles | Planned |
+| **D: Config + Polish** | 2 parallel sessions | Settings panel (replaces YAML editing), Project pipeline view, UI polish + mobile + Cmd+K | Planned |
 
-**Total:** 9 sessions, ~3-4 weeks. After this phase, every feature from Phases 1-2 has a visual interface.
+**Total:** 10 sessions, ~3-4 weeks. After this phase, every feature from Phases 1-2 has a visual interface.
 
 **Impact on later phases:** Phase 3 features now include UI from day one (each session creates `app/<feature>/page.tsx` alongside the backend). Phase 4's Web UI feature (#16) is effectively done — Phase 4 shrinks significantly.
 
