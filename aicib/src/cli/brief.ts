@@ -9,7 +9,7 @@ import {
   formatMessagePlain,
 } from "../core/agent-runner.js";
 import { formatMessageWithColor } from "../core/output-formatter.js";
-import type { SDKSystemMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { EngineSystemMessage } from "../core/engine/index.js";
 import {
   startBackgroundBrief,
   isProcessRunning,
@@ -219,9 +219,9 @@ export async function briefCommand(
           if (
             msg.type === "system" &&
             "subtype" in msg &&
-            ((msg as SDKSystemMessage).subtype as string) === "task_notification"
+            ((msg as EngineSystemMessage).subtype as string) === "task_notification"
           ) {
-            const taskMsg = msg as SDKSystemMessage & {
+            const taskMsg = msg as EngineSystemMessage & {
               taskName?: string;
               taskStatus?: string;
               agentName?: string;

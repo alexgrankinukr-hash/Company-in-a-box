@@ -12,6 +12,7 @@ import {
   formatTimeAgo,
   formatUSD,
 } from "./ui.js";
+import { TaskManager } from "../core/task-manager.js";
 
 interface StatusOptions {
   dir: string;
@@ -207,6 +208,38 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
     console.log(agentTable.toString());
     console.log();
+
+    // Task summary
+    try {
+      const taskManager = new TaskManager(projectDir);
+      try {
+        const taskSummary = taskManager.getTaskSummary();
+        if (taskSummary.total > 0) {
+          const reviewNote =
+            taskSummary.in_review > 0
+              ? chalk.yellow(` (${taskSummary.in_review} awaiting review)`)
+              : "";
+          console.log(
+            chalk.bold("  Tasks: ") +
+              chalk.dim(`${taskSummary.backlog} backlog`) +
+              " | " +
+              chalk.white(`${taskSummary.todo} todo`) +
+              " | " +
+              chalk.cyan(`${taskSummary.in_progress} active`) +
+              " | " +
+              chalk.yellow(`${taskSummary.in_review} review`) +
+              " | " +
+              chalk.green(`${taskSummary.done} done`) +
+              reviewNote
+          );
+          console.log();
+        }
+      } finally {
+        taskManager.close();
+      }
+    } catch {
+      // Task system not initialized yet — skip silently
+    }
 
     costTracker.close();
   } catch (error) {

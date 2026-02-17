@@ -20,6 +20,12 @@ tools:
   - WebSearch
   - WebFetch
 escalation_threshold: medium
+autonomy_level: autonomous
+skills:
+  - architecture_design
+  - code_review
+  - project_planning
+escalation_priority: high
 ---
 
 # Chief Technology Officer (CTO)

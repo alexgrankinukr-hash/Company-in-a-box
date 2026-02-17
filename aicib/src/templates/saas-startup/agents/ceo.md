@@ -20,6 +20,11 @@ tools:
   - WebFetch
 escalation_threshold: high
 check_in_interval: "4h"
+autonomy_level: full
+skills:
+  - project_planning
+  - stakeholder_reporting
+escalation_priority: critical
 ---
 
 # Chief Executive Officer (CEO)

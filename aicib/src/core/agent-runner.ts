@@ -298,7 +298,11 @@ ${journalBlock}${extensionContext}
 ## Company: ${config.company.name}
 ## Cost Limits: $${config.settings.cost_limit_daily}/day, $${config.settings.cost_limit_monthly}/month
 
-IMPORTANT: You MUST delegate work to your department heads using the Task tool. Do NOT do implementation work (writing code, creating files, etc.) directly. Your job is to coordinate, plan, and delegate.`;
+IMPORTANT: You MUST delegate work to your department heads using the Task tool. Do NOT do implementation work (writing code, creating files, etc.) directly. Your job is to coordinate, plan, and delegate.
+
+## Working Directory
+Your project directory is: ${projectDir}
+When delegating tasks to department heads, ALWAYS instruct them to save files using absolute paths under this directory. For example, use "${projectDir}/reports/file.md" instead of "reports/file.md". This ensures all output lands in the correct location.`;
 
   const startPrompt = `You are the CEO of ${config.company.name}. Your team is now active.
 
@@ -395,7 +399,9 @@ export async function sendBrief(
 ${directive}
 ${extensionContext ? `\n## Current Context\n${extensionContext}\n` : ""}
 ---
-Process this directive according to your CEO role. Decompose into department-level objectives and delegate to your team using the Task tool. Report back with your plan before executing.`;
+Process this directive according to your CEO role. Decompose into department-level objectives and delegate to your team using the Task tool. Report back with your plan before executing.
+
+REMINDER: Your project directory is ${projectDir}. When delegating to department heads, instruct them to save ALL files using absolute paths under this directory.`;
 
   let sessionId = sdkSessionId;
   let result: SessionResult = {

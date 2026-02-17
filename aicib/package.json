@@ -28,6 +28,8 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.39",
+    "@slack/bolt": "^4.1.0",
+    "@slack/web-api": "^7.8.0",
     "better-sqlite3": "^11.7.0",
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.5",

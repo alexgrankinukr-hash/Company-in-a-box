@@ -52,6 +52,10 @@ settings:
 
 The status command also shows agent costs in its dashboard alongside the org chart and background job status.
 
+## Assigning Different Models to Control Cost
+
+You can assign cheaper models to less important agents to save money. See [Choosing AI Models for Your Team](model-assignment.md) for a full guide on which model to give each agent.
+
 ## How Costs Are Tracked
 
 - Every SDK call records input tokens, output tokens, and cost per model

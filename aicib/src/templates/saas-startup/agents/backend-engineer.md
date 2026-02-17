@@ -14,6 +14,12 @@ tools:
   - Bash
   - TodoWrite
 escalation_threshold: low
+autonomy_level: guided
+skills:
+  - api_development
+  - code_review
+  - testing
+escalation_priority: medium
 ---
 
 # Backend Engineer

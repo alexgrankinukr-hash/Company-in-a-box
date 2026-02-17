@@ -22,6 +22,11 @@ export interface AgentFrontmatter {
   tools: string[];
   escalation_threshold: string;
   check_in_interval?: string;
+  // Agent intelligence fields (Phase 2 Wave 2 Session 3)
+  autonomy_level?: string;
+  skills?: string[];
+  // Reserved for Phase 3 — will be used as default priority when recording escalation events
+  escalation_priority?: string;
 }
 
 export interface AgentDefinition {

@@ -16,6 +16,12 @@ tools:
   - WebSearch
   - WebFetch
 escalation_threshold: low
+autonomy_level: guided
+skills:
+  - copywriting
+  - seo_optimization
+  - research
+escalation_priority: medium
 ---
 
 # Content Writer

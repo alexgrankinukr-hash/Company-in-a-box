@@ -523,6 +523,14 @@ export class CostTracker {
       .all(jobId) as BackgroundLog[];
   }
 
+  getBackgroundLogsSince(jobId: number, afterId: number): BackgroundLog[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM background_logs WHERE job_id = ? AND id > ? ORDER BY id ASC`
+      )
+      .all(jobId, afterId) as BackgroundLog[];
+  }
+
   // CEO Journal methods
 
   createJournalEntry(entry: {

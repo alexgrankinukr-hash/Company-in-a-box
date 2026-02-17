@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+// Side-effect imports: register config extensions + database tables
+// before any config loading or CostTracker construction.
+import "./integrations/slack/register.js";
+import "./core/task-register.js";
+import "./core/intelligence-register.js";
+
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
 import { startCommand } from "./cli/start.js";
@@ -12,6 +18,15 @@ import { addAgentCommand } from "./cli/add-agent.js";
 import { removeAgentCommand } from "./cli/remove-agent.js";
 import { configCommand } from "./cli/config.js";
 import { journalCommand } from "./cli/journal.js";
+import { slackConnectCommand, slackDisconnectCommand, slackStatusCommand } from "./cli/slack.js";
+import {
+  tasksCommand,
+  tasksListCommand,
+  tasksCreateCommand,
+  tasksShowCommand,
+  tasksUpdateCommand,
+  tasksReviewCommand,
+} from "./cli/tasks.js";
 
 const program = new Command();
 
@@ -102,5 +117,74 @@ program
   .description("Interactive configuration")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(configCommand);
+
+// --- Slack integration ---
+const slack = program.command("slack").description("Manage Slack integration");
+slack
+  .command("connect")
+  .description("Connect your AI company to Slack")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(slackConnectCommand);
+slack
+  .command("disconnect")
+  .description("Disconnect Slack integration")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(slackDisconnectCommand);
+slack
+  .command("status")
+  .description("Show Slack connection status")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(slackStatusCommand);
+
+// --- Task management ---
+const tasks = program.command("tasks").description("Manage company tasks and projects");
+tasks
+  .command("list")
+  .description("List all tasks with optional filters")
+  .option("--status <status>", "Filter by status (backlog,todo,in_progress,in_review,done,cancelled)")
+  .option("--department <dept>", "Filter by department")
+  .option("--assigned <agent>", "Filter by assigned agent")
+  .option("--priority <priority>", "Filter by priority (critical,high,medium,low)")
+  .option("--overdue", "Show only overdue tasks")
+  .option("--blocked", "Show only blocked tasks")
+  .option("--limit <n>", "Max tasks to show", "50")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(tasksListCommand);
+tasks
+  .command("create")
+  .description("Create a new task")
+  .option("--title <title>", "Task title")
+  .option("--description <desc>", "Task description")
+  .option("--department <dept>", "Department (engineering, finance, marketing)")
+  .option("--assign <agent>", "Assign to an agent")
+  .option("--priority <priority>", "Priority (critical, high, medium, low)", "medium")
+  .option("--parent <id>", "Parent task ID (for subtasks)")
+  .option("--deadline <datetime>", "Deadline (ISO 8601)")
+  .option("-i, --interactive", "Interactive creation with prompts")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(tasksCreateCommand);
+tasks
+  .command("show <id>")
+  .description("Show full task details")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(tasksShowCommand);
+tasks
+  .command("update <id>")
+  .description("Update a task")
+  .option("--status <status>", "New status")
+  .option("--assign <agent>", "Reassign to agent")
+  .option("--priority <priority>", "Change priority")
+  .option("--comment <text>", "Add a comment")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(tasksUpdateCommand);
+tasks
+  .command("review")
+  .description("Review tasks awaiting approval")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(tasksReviewCommand);
+// Default action: show dashboard when bare `aicib tasks` is run
+tasks
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(tasksCommand);
 
 program.parse();

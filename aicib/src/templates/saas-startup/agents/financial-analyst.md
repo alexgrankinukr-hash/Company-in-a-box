@@ -16,6 +16,12 @@ tools:
   - WebSearch
   - WebFetch
 escalation_threshold: low
+autonomy_level: guided
+skills:
+  - financial_modeling
+  - market_analysis
+  - research
+escalation_priority: medium
 ---
 
 # Financial Analyst

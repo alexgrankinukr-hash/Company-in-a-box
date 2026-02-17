@@ -115,10 +115,20 @@ The cost tracker (`cost-tracker.ts`) has a table registry:
 
 **Guard:** Duplicate table name → throws `Error`
 
+### Subagent Working Directory Fix
+
+The SDK's `AgentDefinition` type does not support a `cwd` field — subagents inherit the parent's `cwd` from the session options. However, this inheritance is inconsistent: some subagents (especially those spawned in parallel or after the first) may fall back to `process.cwd()` instead.
+
+**Fix:** Both `startCEOSession()` and `sendBrief()` inject the absolute project directory into the CEO's prompt:
+- `startCEOSession()` appends a `## Working Directory` section to the CEO's system prompt
+- `sendBrief()` appends a `REMINDER` line to each brief prompt
+
+This instructs the CEO to tell all department heads to use absolute paths when saving files, bypassing the SDK's unreliable cwd propagation.
+
 ### SDK Configuration
 
 The CEO session is configured with:
-- `systemPrompt`: Claude Code preset + CEO soul.md content + persona overlay + journal context appended
+- `systemPrompt`: Claude Code preset + CEO soul.md content + persona overlay + journal context + **working directory instruction** appended
 - `tools`: Claude Code preset (full tool access)
 - `agents`: C-suite subagents built from soul.md files with persona overlays
 - `permissionMode`: `bypassPermissions` (agents work autonomously)
@@ -164,6 +174,8 @@ Both foreground (`brief.ts`) and background (`background-worker.ts`) paths now t
 ## Key Files
 
 - `src/core/agent-runner.ts` — The SDK bridge (this module)
+- `src/core/engine/` — Engine abstraction layer (see `docs/technical/engine-abstraction.md`)
+- `src/core/model-router.ts` — Model catalog, name resolution, pricing tiers
 - `src/core/cost-tracker.ts` — SQLite persistence (sessions, costs, session_data, background_jobs, background_logs, ceo_journal tables)
 - `src/core/persona.ts` — Persona preset loading and application
 - `src/core/output-formatter.ts` — Color-coded message formatting (`formatMessageWithColor`)
@@ -187,7 +199,8 @@ Both foreground (`brief.ts`) and background (`background-worker.ts`) paths now t
 - **Disabled agents**: Agents with `enabled: false` in config are excluded from subagent map
 - **SDK tools mismatch**: `SendMessage` and `TeamCreate` from soul.md are silently filtered out
 - **Cost recording**: Per-model breakdown via SDK `modelUsage` field. Falls back to single entry if unavailable.
-- **Unknown model ID**: If a model ID doesn't contain "opus", "sonnet", or "haiku", a warning is logged and the fallback pricing tier is used
+- **Unknown model ID**: If a model ID doesn't start with "claude-opus" or "claude-haiku", it's assigned the sonnet tier. `toSDKShortName()` logs a `console.warn` on fallback. Prefix matching (`startsWith`) avoids false positives on hypothetical compound names.
+- **Subagent wrong cwd**: SDK's `AgentDefinition` lacks a `cwd` field. Subagents may fall back to `process.cwd()` instead of inheriting the CEO's `cwd`. Mitigated by injecting absolute project path into CEO/brief prompts.
 - **Journal loading failure**: Caught and warned — CEO starts without memory, session is not blocked
 - **Journal DB connection**: Always closed via `finally` block, even if loading throws
 - **Persona preset missing**: Warned but not blocking — agents run with base personality only
@@ -198,10 +211,22 @@ Both foreground (`brief.ts`) and background (`background-worker.ts`) paths now t
 - **Unknown YAML keys**: Preserved through load/save round-trips instead of being silently dropped
 - **Message handler failure**: Logged as warning, never breaks the main message stream
 
+### Registered Hooks (as of Wave 2)
+
+| Module | Context Providers | Message Handlers | Config Sections | DB Tables |
+|--------|-------------------|------------------|-----------------|-----------|
+| Slack (`integrations/slack/register.ts`) | — | `slack-bridge` | `slack` | — |
+| Tasks (`core/task-register.ts`) | `task-board` | `task-actions` | `tasks` | `tasks`, `task_blockers`, `task_comments` |
+| Intelligence (`core/intelligence-register.ts`) | `autonomy-rules`, `escalation-chain`, `agent-skills` | — | `autonomy`, `escalation`, `skills` | `escalation_events` |
+
 ## Related Docs
 
+- `docs/technical/engine-abstraction.md` — Engine abstraction layer and model router (Phase 2 Wave 1)
+- `docs/technical/task-management.md` — Task/project management system (Phase 2 Wave 2 Session 4)
+- `docs/technical/agent-intelligence.md` — Autonomy, escalation, skills (Phase 2 Wave 2 Session 3)
 - `docs/technical/persona-system.md` — Persona preset system (S2)
 - `docs/technical/journal-and-output.md` — Journal, colored output, org chart (S3)
 - `docs/flows/cost-and-budgets.md` — Cost command and budget alerts (S4)
+- `docs/flows/tasks.md` — Task commands user guide (Phase 2 Wave 2 Session 4)
 - `docs/flows/journal.md` — Journal command user guide (S3)
 - `docs/flows/start-brief-stop.md` — Core command workflow (S1)

@@ -19,6 +19,12 @@ tools:
   - WebSearch
   - WebFetch
 escalation_threshold: medium
+autonomy_level: autonomous
+skills:
+  - content_strategy
+  - copywriting
+  - market_analysis
+escalation_priority: high
 ---
 
 # Chief Marketing Officer (CMO)

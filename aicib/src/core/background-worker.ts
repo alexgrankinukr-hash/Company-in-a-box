@@ -11,9 +11,13 @@
  * background_jobs row with the outcome.
  */
 
+// Side-effect imports: register task + intelligence hooks before config/DB
+import "./task-register.js";
+import "./intelligence-register.js";
+
 import { loadConfig } from "./config.js";
 import { CostTracker } from "./cost-tracker.js";
-import type { SDKSystemMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { EngineSystemMessage } from "./engine/index.js";
 import { sendBrief, recordRunCosts, generateJournalEntry, formatMessagePlain } from "./agent-runner.js";
 
 async function main(): Promise<void> {
@@ -83,9 +87,9 @@ async function main(): Promise<void> {
         if (
           msg.type === "system" &&
           "subtype" in msg &&
-          ((msg as SDKSystemMessage).subtype as string) === "task_notification"
+          ((msg as EngineSystemMessage).subtype as string) === "task_notification"
         ) {
-          const taskMsg = msg as SDKSystemMessage & {
+          const taskMsg = msg as EngineSystemMessage & {
             taskName?: string;
             taskStatus?: string;
             agentName?: string;

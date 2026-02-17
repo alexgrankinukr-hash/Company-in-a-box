@@ -201,6 +201,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 | 28 | Long Autonomous Task Chains | The ability to give the CEO a big project ("build me a car sales website") and have the team work on it for hours autonomously. The CEO plans the project, breaks it into phases, delegates phase by phase, reviews results after each phase, requests fixes if needed, and only pings the founder when the full project is complete. Think of it like giving your CEO a brief on Monday morning and getting a finished deliverable by end of day — without checking in every 10 minutes. Builds on background mode from Phase 1. | Large (1.5 weeks) |
 | 30 | Cost Tracking Upgrade | Two improvements to the money tracking system. **First:** stop using hardcoded prices — instead, use the actual cost reported by each model provider's API (so if Anthropic changes their prices, our numbers update automatically). **Second:** add a configurable pricing table in the config file so the founder can set custom rates for any model (needed for local models that are free, or new providers whose prices we don't know yet). Also adds `cost_limit_daily: 0` documentation so founders know how to run with unlimited budget. Without this upgrade, adding new models in the multi-model feature would show wrong costs or $0. | Small (0.5 weeks) |
 | 31 | Agent Engine Abstraction Layer | When building multi-model support, create a thin interface layer between AICIB's core code and the Agent SDK. This way, AICIB's code talks to our own functions instead of directly to SDK functions. If we ever need to switch engines (e.g., to Pi, raw API, or something new), we only change the adapter — not the entire codebase. Think of it like a universal power adapter: our code uses one plug, the adapter converts to whatever engine we need. Low risk, high optionality — takes a few days, saves weeks if we ever need to switch. See `implementation/Research-Pi-vs-AgentSDK.md` for full analysis. | Small (0.5 weeks) |
+| 33 | Slack Interaction Improvements | Make the Slack experience feel like chatting with real teammates, not just sending formal briefs. **Conversational mode:** CEO (and other agents) can just chat when you message them casually, and only switch into "brief/task mode" when you give them actual work — with a confirmation like "Want me to work on this with the team?" before kicking off delegation. **Department channel responses:** All department channels respond to messages (not just #ceo). Message #engineering and the CTO replies; message #finance and the CFO replies. **Agent @mentions:** Tag a specific agent like @CTO in a department channel for a direct conversation. **Custom agent names:** Users can set display names for agents (e.g., "CEO John") in the config file. Discovered during real-world Slack testing — the Slack bot works technically but doesn't feel natural without these improvements. | Medium (1-1.5 weeks) |
 
 ### Phase 2 Dependency & Parallelism Diagram
 
@@ -250,19 +251,18 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 ║                                                                                ║
 ╠══════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                ║
-║  WAVE 1 (2 parallel sessions, ~2 weeks)                                        ║
+║  WAVE 1 (2 parallel sessions, ~2 weeks) ✅ COMPLETE                             ║
 ║  ──────────────────────────────────────                                         ║
 ║  These two features touch COMPLETELY DIFFERENT parts of the codebase:          ║
 ║                                                                                ║
-║    Session 1:  #29 Multi-Model → #31 Abstraction → #30 Cost Upgrade            ║
+║    Session 1:  #29 Multi-Model → #31 Abstraction → #30 Cost Upgrade  ✅        ║
 ║                Creates: core/model-router.ts, core/engine/*.ts                 ║
 ║                Modifies: agent-runner.ts (SDK call layer — LOW level)           ║
 ║                          cost-tracker.ts (pricing constants)                   ║
 ║                                                                                ║
-║    Session 2:  #18 Slack Bot                                                   ║
+║    Session 2:  #18 Slack Bot  ✅                                                ║
 ║                Creates: integrations/slack/*.ts, cli/slack.ts                  ║
-║                Modifies: almost nothing existing — builds in its own           ║
-║                          new directory                                         ║
+║                Modifies: index.ts (CLI), cost-tracker.ts (new method)          ║
 ║                                                                                ║
 ║    WHY SAFE: Session 1 rewrites the low-level engine layer.                    ║
 ║    Session 2 builds an entirely new integration in a new folder.               ║
@@ -270,28 +270,34 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 ║                                                                                ║
 ╠══════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                ║
-║  WAVE 2 (2 parallel sessions, ~2 weeks) — starts after Wave 1                 ║
+║  WAVE 2 (3 parallel sessions, ~2 weeks) — starts after Wave 1                 ║
 ║  ──────────────────────────────────────                                         ║
 ║  WHY WAIT: Wave 1's engine abstraction (#31) changes how agent-runner.ts       ║
 ║  works internally. These features need to build on the stable new              ║
 ║  foundation, not the old one that's about to be rewritten.                     ║
 ║                                                                                ║
-║    Session 3:  #5 Autonomy Matrix + #24 Error Handling + #3 Skills             ║
+║    Session 3:  #5 Autonomy Matrix + #24 Error Handling + #3 Skills  ✅          ║
 ║                Creates: core/autonomy-matrix.ts, core/escalation.ts,           ║
-║                         core/skills.ts                                         ║
+║                         core/skills.ts, core/intelligence-register.ts          ║
 ║                Modifies: agents.ts (add fields), template soul.md files        ║
 ║                Registers: context providers + config sections + DB tables      ║
+║                Peer-reviewed: Cursor + Codex + Claude. 8 fixes applied.        ║
 ║                                                                                ║
-║    Session 4:  #6 Task/Project Management                                      ║
+║    Session 4:  #6 Task/Project Management  ✅                                   ║
 ║                Creates: core/task-manager.ts, cli/tasks.ts                     ║
 ║                Modifies: nothing that Session 3 touches                        ║
 ║                Registers: context providers + config sections + DB tables      ║
 ║                                                                                ║
-║    WHY SAFE: Session 3 owns "agent intelligence" — what agents know,           ║
-║    what they can decide, what skills they have. It touches agents.ts           ║
-║    and soul.md template files.                                                 ║
-║    Session 4 owns "work tracking" — the task board. It creates entirely        ║
-║    new files and uses the hook system. Different concern, different files.     ║
+║    Session 8:  #33 Slack Interaction Improvements                              ║
+║                Creates: integrations/slack/chat-handler.ts                     ║
+║                Modifies: integrations/slack/daemon.ts (add channel             ║
+║                  listeners), message-bridge.ts (chat vs brief routing)         ║
+║                NEEDS: #18 Slack Bot (from Wave 1 — already done)              ║
+║                                                                                ║
+║    WHY SAFE: Session 3 owns agent intelligence (agents.ts, soul.md).           ║
+║    Session 4 owns work tracking (task-manager.ts, cli/tasks.ts).              ║
+║    Session 8 owns Slack interaction (integrations/slack/*.ts).                 ║
+║    All three touch completely different files.                                 ║
 ║                                                                                ║
 ║    WHY GROUPED: #5 Autonomy, #24 Escalation, and #3 Skills all modify         ║
 ║    the same files (agents.ts, soul.md templates). Keeping them in ONE          ║
@@ -348,8 +354,8 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 | When | Sessions | What's happening | Parallel? |
 |------|----------|-----------------|-----------|
 | **Day 1** (half day) | Wave 0: Prep session | **COMPLETE.** Refactored the 3 bottleneck files (`agent-runner.ts`, `config.ts`, `cost-tracker.ts`) with plugin/hook system. Peer-reviewed by Cursor + Codex, 5 fixes applied (reserved key guard, duplicate prevention, default merging, round-trip safety, error logging). | No — solo |
-| **Week 4** | Wave 1: Sessions 1 + 2 | Session 1 builds #29 Multi-Model → #31 Abstraction → #30 Cost Upgrade (engine layer). Session 2 builds #18 Slack Bot (new directory). **Safe:** completely different files. | **Yes — 2 parallel** |
-| **Weeks 5-6** | Wave 2: Sessions 3 + 4 | Session 3 builds #5 Autonomy + #24 Escalation + #3 Skills (agent intelligence). Session 4 builds #6 Task Management (work tracking). **Safe:** different files, different concerns. | **Yes — 2 parallel** |
+| **Week 4** | Wave 1: Sessions 1 + 2 | **COMPLETE.** Session 1: engine abstraction + multi-model + cost upgrade. Session 2: Slack bot (8 new files, CLI commands, peer-reviewed with 14 fixes). | **Yes — 2 parallel** |
+| **Weeks 5-6** | Wave 2: Sessions 3 + 4 + 8 | **Session 3: COMPLETE + peer-reviewed.** #5 Autonomy + #24 Escalation + #3 Skills (agent intelligence). 4 new files + `intelligence-register.ts`, 3 context providers, 1 DB table. Peer-reviewed by Cursor + Codex + Claude: 8 fixes applied. **Session 4: COMPLETE + peer-reviewed.** #6 Task Management. 3 new files: `task-manager.ts`, `task-register.ts`, `cli/tasks.ts`. 3 DB tables, context provider, message handler. Peer-reviewed by Claude + Cursor + Codex: 12 fixes applied (BFS cycle, missing hook imports, fresh-project crash, FK enforcement, NL matchAll, empty title guard, limit=0 guard). Session 8 builds #33 Slack Interaction Improvements. **Safe:** all three touch completely different files. | **Yes — 3 parallel** |
 | **Week 7** | Wave 3: Sessions 5 + 6 + 7 | Session 5 builds #7 Knowledge. Session 6 builds #28 Long Task Chains. Session 7 builds #9 HR System. **Safe:** each creates its own new files, minimal overlap. | **Yes — 3 parallel** |
 | **Week 7 end** | Final integration + test | One session verifies all 11 features work together. Fix any interactions. | No — solo |
 
@@ -366,21 +372,24 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 | Table registry in `cost-tracker.ts` | Done. Features register DB tables created during init. Duplicate name guard. |
 | Peer review fixes (Cursor + Codex) | Done. 5 of 14 findings fixed; 9 deferred as over-engineering or not applicable. |
 
-**Wave 1 — Engine + Slack (2 parallel sessions, ~2 weeks):**
+**Wave 1 — Engine + Slack (2 parallel sessions, ~2 weeks) — COMPLETE:**
 
 | Session | Features | New files created | Shared files modified | Estimated time |
 |---------|----------|-------------------|----------------------|----------------|
-| **1** | #29 Multi-Model → #31 Abstraction → #30 Cost Upgrade | `core/model-router.ts`, `core/engine/engine-interface.ts`, `core/engine/sdk-adapter.ts` | `agent-runner.ts` (SDK call layer), `cost-tracker.ts` (pricing) | 2 weeks |
-| **2** | #18 Slack Bot | `integrations/slack/bot.ts`, `integrations/slack/channel-mapper.ts`, `integrations/slack/message-bridge.ts`, `cli/slack.ts` | Almost none — builds in its own new `integrations/` directory | 1-1.5 weeks |
+| **1** | #29 Multi-Model → #31 Abstraction → #30 Cost Upgrade | `core/model-router.ts`, `core/engine/engine-interface.ts`, `core/engine/sdk-adapter.ts`, `core/engine/types.ts`, `core/engine/index.ts` | `agent-runner.ts` (SDK call layer), `config.ts` (model validation), `cost-tracker.ts` (pricing) | 2 weeks |
+| **2** | #18 Slack Bot | `integrations/slack/types.ts`, `integrations/slack/register.ts`, `integrations/slack/state.ts`, `integrations/slack/channel-mapper.ts`, `integrations/slack/message-formatter.ts`, `integrations/slack/message-bridge.ts`, `integrations/slack/daemon.ts`, `cli/slack.ts` | `index.ts` (CLI commands), `cost-tracker.ts` (new method) | 1-1.5 weeks |
 
-**Wave 2 — Agent Intelligence + Tasks (2 parallel sessions, ~2 weeks):**
+**Wave 2 — Agent Intelligence + Tasks + Slack Chat (3 parallel sessions, ~2 weeks):**
 
 | Session | Features | New files created | Shared files modified | Estimated time |
 |---------|----------|-------------------|----------------------|----------------|
-| **3** | #5 Autonomy + #24 Escalation + #3 Skills | `core/autonomy-matrix.ts`, `core/escalation.ts`, `core/skills.ts` | `agents.ts` (new fields), all soul.md template files | 2 weeks |
-| **4** | #6 Task/Project Management | `core/task-manager.ts`, `cli/tasks.ts` | Uses hook system only — no direct shared file edits | 1.5 weeks |
+| **3** | #5 Autonomy + #24 Escalation + #3 Skills | `core/autonomy-matrix.ts`, `core/escalation.ts`, `core/skills.ts`, `core/intelligence-register.ts` | `agents.ts` (new fields), all soul.md template files | 2 weeks ✅ |
+| **4** | #6 Task/Project Management | `core/task-manager.ts`, `core/task-register.ts`, `cli/tasks.ts` | Uses hook system only — no direct shared file edits | 1.5 weeks ✅ |
+| **8** | #33 Slack Interaction Improvements | `integrations/slack/chat-handler.ts` | `integrations/slack/daemon.ts`, `message-bridge.ts` | 1-1.5 weeks |
 
 > **Why #5, #24, and #3 are grouped in one session:** All three need to modify `agents.ts` (adding decision authority, escalation rules, and skills to agent definitions) and all agent soul.md template files. Keeping them in one session means one Claude Code agent has full context of all those changes — zero risk of one overwriting the other.
+>
+> **Why Session 8 is safe in parallel:** It only touches files in `integrations/slack/` — completely separate from the core files Sessions 3 and 4 work on. It builds on the Slack bot (#18) already completed in Wave 1.
 
 **Wave 3 — Knowledge + Long Tasks + HR (3 parallel sessions, ~1.5 weeks):**
 
@@ -397,8 +406,11 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 > **Why integration is lighter with the hook system:** Because the prep step created a plugin architecture, most features just create their own files and register with the core. The main shared files (`agent-runner.ts`, `config.ts`, `cost-tracker.ts`) stay mostly untouched after Wave 0. This means there's no big scary merge — just verification that everything works together.
 
 - **After Wave 0:** **COMPLETE.** Hook system compiles clean (`tsc --noEmit` zero errors). Peer-reviewed and hardened. Existing functionality unchanged (no extensions registered yet — guards are purely defensive).
-- **After Wave 1:** Verify the engine abstraction didn't break existing commands (`aicib start`, `aicib brief`). Verify Slack bot connects independently. 1-2 hours.
-- **After Wave 2:** Check that autonomy rules, escalation, skills, and task management all register correctly through the hook system. Test interactions (e.g., can a task trigger an escalation?). Half a day.
+- **After Wave 1, Session 1:** Engine abstraction + multi-model + cost upgrade implemented and builds clean. Peer-reviewed by Claude (self), Cursor, and Codex — 14 findings across 3 reviewers, 7 fixed (dead exports removed, API surface cleaned, heuristics tightened to `startsWith`, `resetEngine()` added, imports organized, comments added), 5 won't-fix (over-engineering), 2 deferred (column rename + cost source flag to Phase 3). See commit `cb04ddc`.
+- **After Wave 1, Session 2:** Slack integration (#18) implemented and builds clean. 8 new files in `integrations/slack/`, CLI commands in `cli/slack.ts`, `cost-tracker.ts` extended with `getBackgroundLogsSince()`. Peer-reviewed by Claude/Cursor/Codex — 14 consensus fixes applied (bold/italic conversion order, Slack token preservation, thread scoping per-brief, monthly budget check parity, shared state module, daemon import path, log polling SQL optimization, department-based log routing, silent catch logging, unused table removed, health check on connect). See docs: `docs/technical/slack-integration.md`, `docs/flows/slack.md`.
+- **After Wave 2, Session 3:** Agent Intelligence (#5 + #24 + #3) implemented and builds clean. 4 new files: `autonomy-matrix.ts` (5 autonomy levels, config + validation), `escalation.ts` (up-to-6-step chain from org structure, DB helpers), `skills.ts` (14 built-in skills, resolution, formatting), `intelligence-register.ts` (side-effect registration of 3 config extensions + 1 DB table + 3 context providers). Modified: `agents.ts` (3 new frontmatter fields), `index.ts` (1 import), all 8 soul.md template files. Core files NOT touched — all integration via hook APIs. Peer-reviewed by Cursor + Codex + Claude: 12 valid findings, 1 invalid, 1 already fixed. 8 code fixes applied (critical: skills scalar normalization; warnings: human_founder dedup, preloaded agents optimization, mutable default copy; suggestions: top-level type guards + array element checks on all 3 validators, non-null assertion removal, excess override warning). 4 documentation items added. 4 won't-fix with rationale. See docs: `docs/technical/agent-intelligence.md`, `docs/edge-cases.md`.
+- **After Wave 2, Session 4:** Task Management (#6) implemented and builds clean. 3 new files: `task-manager.ts` (TaskManager class, CRUD, blockers, subtasks, context scoring, priority algorithm), `task-register.ts` (hook registration: config extension + 3 DB tables + context provider + message handler with TASK:: markers and NL patterns), `cli/tasks.ts` (6 CLI commands: list, show, create, update, comment, board). Context provider injects role-aware task board into agent prompts. Message handler parses structured `TASK::CREATE/UPDATE/COMMENT` markers and natural language fallback patterns. Peer-reviewed by Claude + Cursor + Codex: 12 fixes applied — 2 critical (BFS cycle detection direction, background-worker/daemon missing hook imports), 2 high (duplicate comments, fresh-project crash), 5 medium (column whitelist, regex order, NL matchAll, foreign keys, Slack daemon imports), 3 low (empty title guard, max_context_tasks zero, catch logging).
+- **After Wave 2 (full):** Check that autonomy rules, escalation, skills, and task management all register correctly through the hook system. Test interactions (e.g., can a task trigger an escalation?). Half a day.
 - **After Wave 3:** Final integration. All 11 features working together end-to-end. Test the full flow: send a brief, watch autonomy rules kick in, tasks get created, knowledge base gets updated, Slack shows activity. Budget a full day.
 
 ---
@@ -595,6 +607,7 @@ LAYER 4: Delivery (how information reaches you)
 
 LAYER 2.5: First External Interface (pulled forward from Phase 4)
   [4] ──> [18] Slack Bot (moved to Phase 2 — first interface outside the terminal)
+  [18] ──> [33] Slack Interaction Improvements (chat mode, dept channels, agent names) ← NEW Phase 2 Wave 2
 
 LAYER 5: Interfaces (how you interact with the system)
   [ALL] ──> [16] Web UI (dashboard in your browser)

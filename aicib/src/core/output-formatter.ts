@@ -1,9 +1,9 @@
 import chalk, { type ChalkInstance } from "chalk";
 import type {
-  SDKMessage,
-  SDKResultMessage,
-  SDKSystemMessage,
-} from "@anthropic-ai/claude-agent-sdk";
+  EngineMessage,
+  EngineResultMessage,
+  EngineSystemMessage,
+} from "./engine/index.js";
 
 /**
  * Deterministic color scheme per agent role.
@@ -41,9 +41,9 @@ export function formatAgentTag(role: string): string {
 }
 
 /**
- * Determines the agent role from an SDK message.
+ * Determines the agent role from an engine message.
  */
-function getMessageRole(message: SDKMessage): string {
+function getMessageRole(message: EngineMessage): string {
   if (message.type === "assistant") {
     return message.parent_tool_use_id ? "subagent" : "ceo";
   }
@@ -57,7 +57,7 @@ function getMessageRole(message: SDKMessage): string {
  * Drop-in replacement for the plain-text formatMessage() from agent-runner.ts.
  */
 export function formatMessageWithColor(
-  message: SDKMessage,
+  message: EngineMessage,
   agentRole?: string
 ): string | null {
   if (message.type === "assistant") {
@@ -80,13 +80,13 @@ export function formatMessageWithColor(
   }
 
   if (message.type === "system" && "subtype" in message) {
-    const sysMsg = message as SDKSystemMessage;
+    const sysMsg = message as EngineSystemMessage;
     if (sysMsg.subtype === "init") {
       const tag = formatAgentTag("system");
       return `${tag} Session: ${sysMsg.session_id} | Model: ${sysMsg.model}`;
     }
     if ((sysMsg.subtype as string) === "task_notification") {
-      const taskMsg = sysMsg as SDKSystemMessage & {
+      const taskMsg = sysMsg as EngineSystemMessage & {
         taskName?: string;
         taskStatus?: string;
         agentName?: string;
@@ -97,7 +97,7 @@ export function formatMessageWithColor(
       return `${agentTag} Task ${status}`;
     }
     if ((sysMsg.subtype as string) === "tool_progress") {
-      const progressMsg = sysMsg as SDKSystemMessage & {
+      const progressMsg = sysMsg as EngineSystemMessage & {
         toolName?: string;
         agentName?: string;
         content?: string;
@@ -112,7 +112,7 @@ export function formatMessageWithColor(
   }
 
   if (message.type === "result") {
-    const resultMsg = message as SDKResultMessage;
+    const resultMsg = message as EngineResultMessage;
     const tag = formatAgentTag("system");
     return `${tag} Cost: $${resultMsg.total_cost_usd.toFixed(4)} | Turns: ${resultMsg.num_turns} | Duration: ${(resultMsg.duration_ms / 1000).toFixed(1)}s`;
   }

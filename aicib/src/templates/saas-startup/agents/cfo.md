@@ -19,6 +19,12 @@ tools:
   - WebSearch
   - WebFetch
 escalation_threshold: medium
+autonomy_level: autonomous
+skills:
+  - financial_modeling
+  - market_analysis
+  - budget_tracking
+escalation_priority: high
 ---
 
 # Chief Financial Officer (CFO)
