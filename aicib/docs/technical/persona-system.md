@@ -1,10 +1,13 @@
-# Persona System (Phase 1 S2)
+# Persona System (Phase 1 S2 + Phase 3 W0)
 
 ## What It Does
 
-Gives each AI agent a distinct personality style. A "preset" applies a communication tone across the whole company, and per-agent overrides let you mix and match (e.g., CTO gets "technical" while CMO gets "creative").
+Two-tier agent personality system:
 
-## How It Works
+1. **Global Presets** (Phase 1) — company-wide communication tone with per-agent overrides
+2. **Agent Persona Studio** (Phase 3) — per-agent display names, role archetypes, personality traits, and professional backgrounds
+
+## Tier 1: Global Presets
 
 ### Preset Files
 
@@ -28,27 +31,6 @@ description: Fast-moving and informal
 - Use first names...
 ```
 
-### Application Flow
-
-```
-aicib.config.yaml → persona.preset: "startup"
-                   → persona.overrides: { cmo: "creative" }
-                          ↓
-loadPersonaFromConfig(config)
-   → loadPreset(templateDir, "startup")       → base preset
-   → loadPreset(templateDir, "creative")      → CMO override
-                          ↓
-loadAgentDefinitions(agentsDir, preset, overrides)
-   → for each agent:
-        applyPresetToContent(agent.content, preset)
-        → appends "## Tone & Phrasing (Startup preset)" section
-   → CMO gets creative instead of startup
-                          ↓
-buildSubagentMap() → SDK AgentDefinition objects with personality-enriched prompts
-```
-
-The preset is **appended** to each agent's soul.md content — it doesn't replace anything. The agent's base personality stays intact; the preset adds communication style guidelines.
-
 ### Config
 
 ```yaml
@@ -59,28 +41,126 @@ persona:
     cto: technical            # CTO gets a different style
 ```
 
-### User-Facing Commands
+## Tier 2: Agent Persona Studio
 
-- `aicib init` — asks "What personality style should your AI team use?" during setup
-- `aicib config` → "Agent personas" menu — change preset, set per-agent overrides, view current settings
+### Four Layers
+
+Applied in order during agent loading:
+
+1. **Role Preset** — archetype .md file with behavioral instructions (e.g., "the-visionary" for CEO)
+2. **Personality Traits** — 6 configurable dimensions compiled to natural language
+3. **Professional Background** — years of experience, industries, specialized knowledge, work history
+4. **Display Name** — modifies the `# Title` heading (e.g., `# Sarah — Chief Executive Officer (CEO)`)
+
+### Role Presets
+
+25 archetype files across 8 roles in `templates/saas-startup/presets/roles/`:
+
+| Role | Presets |
+|------|---------|
+| CEO | the-visionary, the-operator, the-diplomat, the-disruptor |
+| CTO | the-architect, the-pragmatist, the-innovator |
+| CFO | the-strategist, the-controller, the-growth-oriented |
+| CMO | the-growth-hacker, the-brand-builder, the-performance-marketer |
+| Backend Engineer | the-craftsman, the-systems-thinker, the-pragmatist |
+| Frontend Engineer | the-pixel-perfectionist, the-ux-advocate |
+| Financial Analyst | the-modeler, the-advisor |
+| Content Writer | the-storyteller, the-data-journalist, the-brand-voice |
+
+Each preset is a Markdown file with YAML frontmatter (`name`, `display_name`, `description`) and behavioral content.
+
+### Personality Traits
+
+Six dimensions, each compiled to a 1-2 sentence behavioral instruction:
+
+| Dimension | Values |
+|-----------|--------|
+| `communication_style` | direct, diplomatic, analytical, creative |
+| `decision_making` | data-driven, intuitive, collaborative |
+| `risk_tolerance` | conservative, moderate, aggressive |
+| `assertiveness` | 1-5 (deferential → dominant) |
+| `creativity` | 1-5 (conventional → unconventional) |
+| `conflict_approach` | confrontational, collaborative, avoidant |
+
+### Config
+
+```yaml
+persona:
+  preset: professional
+  agents:
+    ceo:
+      display_name: "Sarah"
+      role_preset: the-visionary
+      traits:
+        communication_style: direct
+        decision_making: data-driven
+        assertiveness: 4
+        creativity: 3
+      background:
+        years_experience: 15
+        industry_experience: [fintech, saas]
+        specialized_knowledge: [product-strategy, go-to-market]
+        work_history: "Former VP Product at a Series B fintech startup"
+```
+
+### Application Flow
+
+```
+aicib.config.yaml
+   → persona.preset + overrides (Tier 1)
+   → persona.agents (Tier 2)
+              ↓
+loadPersonaFromConfig(config)
+   → loads global presets + overrides
+   → passes agentPersonas + templateDir
+              ↓
+loadAgentDefinitions(agentsDir, preset, overrides, agentPersonas, templateDir)
+   → for each agent:
+        1. applyPresetToContent()        → global tone
+        2. applyPersonaStudio()          → 4-layer persona
+           a. loadRolePreset()           → appends "## Role Archetype"
+           b. compileTraits()            → appends "## Personality Calibration"
+           c. compileBackground()        → appends "## Professional Background"
+           d. applyDisplayName()         → modifies "# Title" heading
+              ↓
+buildSubagentMap() → SDK AgentDefinition objects with fully-personalized prompts
+```
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `aicib agent` | Dashboard — all agents with persona summary |
+| `aicib agent list` | Table view of all agents |
+| `aicib agent show <role>` | Full persona detail + compiled preview |
+| `aicib agent edit <role>` | Open soul.md in `$VISUAL`/`$EDITOR` |
+| `aicib agent customize [role]` | Interactive wizard for display name, role preset, traits, background |
 
 ### Validation
 
-- `validateAgentPersona(content)` checks soul.md files have required sections: `# Title`, `## Your Role`, `## Decision Authority`, `## Working Style`
-- `loadPersonaFromConfig()` warns if a preset can't be loaded but doesn't block execution
-- Override keys that don't match any agent role get a warning (catches typos in config)
+- `role_preset` must be a valid slug (`/^[a-z][a-z0-9-]*$/`). Actual file existence checked at load time.
+- `traits` must be an object (scalars like `traits: "direct"` are rejected).
+- Trait enum values validated against constant arrays.
+- `assertiveness` and `creativity` must be integers 1-5.
+- `background` fields validated: `years_experience` is number, arrays are arrays, strings are strings.
+- `loadRolePreset()` throws clear error if file not found. `listRolePresets()` warns and skips invalid files.
 
 ## Key Files
 
-- `src/core/persona.ts` — `loadPreset()`, `listPresets()`, `applyPresetToContent()`, `validateAgentPersona()`
-- `src/core/agents.ts` — `loadAgentDefinitions()` applies persona overlays
-- `src/core/agent-runner.ts` — `loadPersonaFromConfig()` bridges config to persona system
-- `src/core/config.ts` — `PersonaConfig` type, validation
-- `src/cli/init.ts` — interactive preset picker
-- `src/cli/config.ts` — personas menu
-- `src/templates/saas-startup/presets/*.md` — preset files
+- `src/core/persona.ts` — types (`PersonalityTraits`, `AgentPersonaConfig`, `RolePreset`), constants, `loadPreset()`, `validateAgentPersona()`
+- `src/core/persona-studio.ts` — `loadRolePreset()`, `listRolePresets()`, `compileTraits()`, `compileBackground()`, `applyDisplayName()`, `applyPersonaStudio()`
+- `src/core/agents.ts` — `loadAgentDefinitions()` applies both preset overlays and persona studio layers
+- `src/core/agent-runner.ts` — `loadPersonaFromConfig()` bridges config to both systems
+- `src/core/config.ts` — full validation for `persona.agents` section
+- `src/cli/agent.ts` — `agentDashboardCommand`, `agentListCommand`, `agentShowCommand`, `agentEditCommand`, `agentCustomizeCommand`
+- `src/cli/init.ts` — interactive persona customization during project setup
+- `src/cli/config.ts` — "Customize agent persona (studio)" menu option
+- `src/index.ts` — `aicib agent` command registration
+- `src/templates/saas-startup/presets/roles/` — 25 role preset .md files
 
 ## Related
 
 - Linear: COM-8
 - Agent soul.md files: `src/templates/saas-startup/agents/*.md`
+- Global preset files: `src/templates/saas-startup/presets/*.md`
+- Role preset files: `src/templates/saas-startup/presets/roles/<role>/*.md`
