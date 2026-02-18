@@ -63,7 +63,29 @@
       "Bash(echo:*)",
       "Bash(git log:*)",
       "Bash(git diff:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)",
+      "Bash(git remote:*)",
+      "Bash(npm build:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run:*)",
+      "Bash(npx:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(wc:*)",
+      "Bash(which:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(sort:*)",
+      "Bash(aicib:*)",
+      "Bash(kill:*)"
     ]
   }
 }
