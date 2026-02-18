@@ -28,7 +28,7 @@ const MODEL_CATALOG: ModelEntry[] = [
   },
   {
     shortName: "sonnet",
-    fullModelId: "claude-sonnet-4-5-20250929",
+    fullModelId: "claude-sonnet-4-6",
     tier: "sonnet",
     fallbackPricing: { input: 3.0, output: 15.0 },
   },

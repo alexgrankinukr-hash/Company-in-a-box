@@ -84,7 +84,7 @@ Theme preference persists across sessions and syncs across devices.
 - Update CSS variables for theme switching
 - Handle system preference detection and updates
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
 
 ### C. Execute Commit
@@ -389,7 +389,7 @@ Theme preference persists across sessions and syncs across devices.
 - Update CSS variables for theme switching
 - Handle system preference detection and updates
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✅ Committed: abc123def

@@ -52,7 +52,7 @@ You can use either the short name or the full name:
 | Short name | Full name | Same thing? |
 |-----------|-----------|-------------|
 | `opus` | `claude-opus-4-6` | Yes |
-| `sonnet` | `claude-sonnet-4-5-20250929` | Yes |
+| `sonnet` | `claude-sonnet-4-6` | Yes |
 | `haiku` | `claude-haiku-4-5-20251001` | Yes |
 
 Short names are easier. Use those.

@@ -50,7 +50,7 @@ Maintains a catalog of known models with short names, full IDs, tiers, and fallb
 | Short Name | Full Model ID | Tier | Fallback Pricing (per M tokens) |
 |-----------|---------------|------|--------------------------------|
 | opus | claude-opus-4-6 | opus | $5 in / $25 out |
-| sonnet | claude-sonnet-4-5-20250929 | sonnet | $3 in / $15 out |
+| sonnet | claude-sonnet-4-6 | sonnet | $3 in / $15 out |
 | haiku | claude-haiku-4-5-20251001 | haiku | $1 in / $5 out |
 
 Key functions:
