@@ -6,6 +6,8 @@ import inquirer from "inquirer";
 import {
   configExists,
   getConfigPath,
+  loadConfig,
+  saveConfig,
   type AicibConfig,
 } from "../core/config.js";
 import {
@@ -16,9 +18,12 @@ import { installAgentDefinitions } from "../core/team.js";
 import {
   VALID_PRESETS,
   PRESET_DESCRIPTIONS,
+  ROLE_PRESETS,
   validateAgentPersona,
   type PersonaPreset,
+  type AgentPersonaConfig,
 } from "../core/persona.js";
+import { listRolePresets } from "../core/persona-studio.js";
 
 interface InitOptions {
   template: string;
@@ -88,6 +93,69 @@ export async function initCommand(options: InitOptions): Promise<void> {
     selectedPreset = answer.selectedPreset;
   }
 
+  // Optional agent personalization step
+  const agentPersonas: Record<string, AgentPersonaConfig> = {};
+  const cSuiteRoles = ["ceo", "cto", "cfo", "cmo"];
+
+  if (!options.persona) {
+    // Only ask interactively (skip if --persona flag was used for automation)
+    const { customize } = await inquirer.prompt([{
+      type: "confirm",
+      name: "customize",
+      message: "Would you like to customize individual agent personalities?",
+      default: false,
+    }]);
+
+    if (customize) {
+      const templateDir = getTemplatePath(template);
+
+      for (const role of cSuiteRoles) {
+        console.log(chalk.bold(`\n  Customizing ${role.toUpperCase()}:`));
+
+        // Display name
+        const { displayName } = await inquirer.prompt([{
+          type: "input",
+          name: "displayName",
+          message: `  Display name for ${role} (Enter to skip):`,
+        }]);
+
+        const personaConfig: AgentPersonaConfig = {};
+        if (displayName.trim()) {
+          personaConfig.display_name = displayName.trim();
+        }
+
+        // Role preset
+        const presets = listRolePresets(templateDir, role);
+        if (presets.length > 0) {
+          const { rolePreset } = await inquirer.prompt([{
+            type: "list",
+            name: "rolePreset",
+            message: `  Role preset for ${role}:`,
+            choices: [
+              { name: chalk.dim("Skip"), value: "__skip__" },
+              ...presets.map((p) => ({
+                name: `${p.displayName} — ${p.description}`,
+                value: p.name,
+              })),
+            ],
+          }]);
+          if (rolePreset !== "__skip__") {
+            personaConfig.role_preset = rolePreset;
+          }
+        }
+
+        if (personaConfig.display_name || personaConfig.role_preset) {
+          agentPersonas[role] = personaConfig;
+        }
+      }
+
+      if (Object.keys(agentPersonas).length > 0) {
+        console.log(chalk.green(`\n  Configured ${Object.keys(agentPersonas).length} agent persona(s).`));
+        console.log(chalk.dim("  Use 'aicib agent customize' later to add traits and backgrounds.\n"));
+      }
+    }
+  }
+
   const spinner = ora("  Creating project structure...").start();
 
   try {
@@ -102,7 +170,18 @@ export async function initCommand(options: InitOptions): Promise<void> {
       /preset:\s*\w+/,
       `preset: ${selectedPreset}`
     );
+
     fs.writeFileSync(configPath, configContent, "utf-8");
+
+    // Merge agent personas via structured config round-trip
+    if (Object.keys(agentPersonas).length > 0) {
+      const cfg = loadConfig(projectDir);
+      if (!cfg.persona) {
+        cfg.persona = { preset: selectedPreset };
+      }
+      cfg.persona.agents = agentPersonas;
+      saveConfig(projectDir, cfg);
+    }
 
     spinner.text = "  Installing agent definitions...";
 

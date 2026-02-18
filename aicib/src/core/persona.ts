@@ -15,6 +15,51 @@ export interface PersonaOverlay {
 export interface PersonaConfig {
   preset: PersonaPreset;
   overrides?: Record<string, PersonaPreset>;
+  agents?: Record<string, AgentPersonaConfig>;
+}
+
+// --- Role-Specific Preset Types ---
+
+export interface RolePreset {
+  name: string;
+  displayName: string;
+  description: string;
+  role: string;
+  content: string;
+}
+
+// --- Tier 2: Personality Traits ---
+
+export type CommunicationStyle = "direct" | "diplomatic" | "analytical" | "creative";
+export type DecisionMaking = "data-driven" | "intuitive" | "collaborative";
+export type RiskTolerance = "conservative" | "moderate" | "aggressive";
+export type ConflictApproach = "confrontational" | "collaborative" | "avoidant";
+
+export interface PersonalityTraits {
+  communication_style?: CommunicationStyle;
+  decision_making?: DecisionMaking;
+  risk_tolerance?: RiskTolerance;
+  assertiveness?: number;
+  creativity?: number;
+  conflict_approach?: ConflictApproach;
+}
+
+// --- Agent Background ---
+
+export interface AgentBackground {
+  industry_experience?: string[];
+  years_experience?: number;
+  specialized_knowledge?: string[];
+  work_history?: string;
+}
+
+// --- Per-Agent Persona Config ---
+
+export interface AgentPersonaConfig {
+  display_name?: string;
+  role_preset?: string;
+  traits?: PersonalityTraits;
+  background?: AgentBackground;
 }
 
 export interface PersonaValidationResult {
@@ -35,6 +80,32 @@ export const PRESET_DESCRIPTIONS: Record<PersonaPreset, string> = {
   technical: "Precise, data-driven, no fluff",
   creative: "Expressive, storytelling, metaphor-rich",
 };
+
+// --- Role Preset Constants ---
+
+export const ROLE_PRESETS: Record<string, string[]> = {
+  ceo: ["the-visionary", "the-operator", "the-diplomat", "the-disruptor"],
+  cto: ["the-architect", "the-pragmatist", "the-innovator"],
+  cfo: ["the-strategist", "the-controller", "the-growth-oriented"],
+  cmo: ["the-growth-hacker", "the-brand-builder", "the-performance-marketer"],
+  "backend-engineer": ["the-craftsman", "the-systems-thinker", "the-pragmatist"],
+  "frontend-engineer": ["the-pixel-perfectionist", "the-ux-advocate"],
+  "financial-analyst": ["the-modeler", "the-advisor"],
+  "content-writer": ["the-storyteller", "the-data-journalist", "the-brand-voice"],
+};
+
+export const VALID_COMMUNICATION_STYLES: CommunicationStyle[] = [
+  "direct", "diplomatic", "analytical", "creative",
+];
+export const VALID_DECISION_MAKING: DecisionMaking[] = [
+  "data-driven", "intuitive", "collaborative",
+];
+export const VALID_RISK_TOLERANCE: RiskTolerance[] = [
+  "conservative", "moderate", "aggressive",
+];
+export const VALID_CONFLICT_APPROACHES: ConflictApproach[] = [
+  "confrontational", "collaborative", "avoidant",
+];
 
 const REQUIRED_SECTIONS = [
   "# ",           // Any top-level heading (# Title)

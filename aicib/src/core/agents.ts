@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { PersonaOverlay } from "./persona.js";
+import type { PersonaOverlay, AgentPersonaConfig } from "./persona.js";
 import { applyPresetToContent } from "./persona.js";
+import { applyPersonaStudio } from "./persona-studio.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -103,7 +104,9 @@ export function parseAgentFile(filePath: string): AgentDefinition {
 export function loadAgentDefinitions(
   agentsDir: string,
   preset?: PersonaOverlay,
-  overrides?: Map<string, PersonaOverlay>
+  overrides?: Map<string, PersonaOverlay>,
+  agentPersonas?: Record<string, AgentPersonaConfig>,
+  templateDir?: string
 ): Map<string, AgentDefinition> {
   const agents = new Map<string, AgentDefinition>();
 
@@ -123,6 +126,17 @@ export function loadAgentDefinitions(
 
     if (effectivePreset) {
       agent.content = applyPresetToContent(agent.content, effectivePreset);
+    }
+
+    // Apply Agent Persona Studio layers if configured
+    const personaConfig = agentPersonas?.[agent.frontmatter.role];
+    if (personaConfig && templateDir) {
+      agent.content = applyPersonaStudio(
+        agent.content,
+        agent.frontmatter.role,
+        personaConfig,
+        templateDir
+      );
     }
 
     agents.set(agent.frontmatter.role, agent);

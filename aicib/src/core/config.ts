@@ -1,8 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
-import type { PersonaPreset, PersonaConfig } from "./persona.js";
-import { VALID_PRESETS } from "./persona.js";
+import type { PersonaPreset, PersonaConfig, AgentPersonaConfig } from "./persona.js";
+import {
+  VALID_PRESETS,
+  ROLE_PRESETS,
+  VALID_COMMUNICATION_STYLES,
+  VALID_DECISION_MAKING,
+  VALID_RISK_TOLERANCE,
+  VALID_CONFLICT_APPROACHES,
+} from "./persona.js";
 import { isValidModelName } from "./model-router.js";
 
 /** Any valid model name — short ("opus") or full ("claude-opus-4-6"). */
@@ -253,6 +260,95 @@ export function validateConfig(raw: Record<string, unknown>): AicibConfig {
         }
       }
     }
+
+    // Validate persona.agents (Agent Persona Studio)
+    if (persona.agents && typeof persona.agents === "object") {
+      for (const [agentRole, agentPersonaRaw] of Object.entries(
+        persona.agents as Record<string, unknown>
+      )) {
+        if (!agentPersonaRaw || typeof agentPersonaRaw !== "object") {
+          errors.push(`persona.agents.${agentRole} must be an object`);
+          continue;
+        }
+        const ap = agentPersonaRaw as Record<string, unknown>;
+
+        if (ap.display_name !== undefined && typeof ap.display_name !== "string") {
+          errors.push(`persona.agents.${agentRole}.display_name must be a string`);
+        }
+
+        if (ap.role_preset !== undefined) {
+          if (typeof ap.role_preset !== "string") {
+            errors.push(`persona.agents.${agentRole}.role_preset must be a string`);
+          } else if (!/^[a-z][a-z0-9-]*$/.test(ap.role_preset)) {
+            errors.push(
+              `persona.agents.${agentRole}.role_preset "${ap.role_preset}" must be a valid slug (lowercase letters, numbers, and hyphens)`
+            );
+          }
+        }
+
+        if (ap.traits !== undefined && typeof ap.traits !== "object") {
+          errors.push(`persona.agents.${agentRole}.traits must be an object`);
+        } else if (ap.traits && typeof ap.traits === "object") {
+          const traits = ap.traits as Record<string, unknown>;
+          if (traits.communication_style !== undefined &&
+            !VALID_COMMUNICATION_STYLES.includes(traits.communication_style as never)) {
+            errors.push(
+              `persona.agents.${agentRole}.traits.communication_style must be one of: ${VALID_COMMUNICATION_STYLES.join(", ")}`
+            );
+          }
+          if (traits.decision_making !== undefined &&
+            !VALID_DECISION_MAKING.includes(traits.decision_making as never)) {
+            errors.push(
+              `persona.agents.${agentRole}.traits.decision_making must be one of: ${VALID_DECISION_MAKING.join(", ")}`
+            );
+          }
+          if (traits.risk_tolerance !== undefined &&
+            !VALID_RISK_TOLERANCE.includes(traits.risk_tolerance as never)) {
+            errors.push(
+              `persona.agents.${agentRole}.traits.risk_tolerance must be one of: ${VALID_RISK_TOLERANCE.join(", ")}`
+            );
+          }
+          if (traits.conflict_approach !== undefined &&
+            !VALID_CONFLICT_APPROACHES.includes(traits.conflict_approach as never)) {
+            errors.push(
+              `persona.agents.${agentRole}.traits.conflict_approach must be one of: ${VALID_CONFLICT_APPROACHES.join(", ")}`
+            );
+          }
+          if (traits.assertiveness !== undefined) {
+            const val = Number(traits.assertiveness);
+            if (!Number.isInteger(val) || val < 1 || val > 5) {
+              errors.push(`persona.agents.${agentRole}.traits.assertiveness must be an integer between 1 and 5`);
+            }
+          }
+          if (traits.creativity !== undefined) {
+            const val = Number(traits.creativity);
+            if (!Number.isInteger(val) || val < 1 || val > 5) {
+              errors.push(`persona.agents.${agentRole}.traits.creativity must be an integer between 1 and 5`);
+            }
+          }
+        }
+
+        if (ap.background !== undefined) {
+          if (typeof ap.background !== "object" || ap.background === null) {
+            errors.push(`persona.agents.${agentRole}.background must be an object`);
+          } else {
+            const bg = ap.background as Record<string, unknown>;
+            if (bg.industry_experience !== undefined && !Array.isArray(bg.industry_experience)) {
+              errors.push(`persona.agents.${agentRole}.background.industry_experience must be an array`);
+            }
+            if (bg.years_experience !== undefined && typeof bg.years_experience !== "number") {
+              errors.push(`persona.agents.${agentRole}.background.years_experience must be a number`);
+            }
+            if (bg.specialized_knowledge !== undefined && !Array.isArray(bg.specialized_knowledge)) {
+              errors.push(`persona.agents.${agentRole}.background.specialized_knowledge must be an array`);
+            }
+            if (bg.work_history !== undefined && typeof bg.work_history !== "string") {
+              errors.push(`persona.agents.${agentRole}.background.work_history must be a string`);
+            }
+          }
+        }
+      }
+    }
   }
 
   // Validate and populate registered config extensions
@@ -291,6 +387,9 @@ export function validateConfig(raw: Record<string, unknown>): AicibConfig {
     preset: (rawPersona.preset as PersonaPreset) || "professional",
     ...(rawPersona.overrides
       ? { overrides: rawPersona.overrides as Record<string, PersonaPreset> }
+      : {}),
+    ...(rawPersona.agents
+      ? { agents: rawPersona.agents as Record<string, AgentPersonaConfig> }
       : {}),
   };
 

@@ -13,6 +13,7 @@ import {
   PRESET_DESCRIPTIONS,
   type PersonaPreset,
 } from "../core/persona.js";
+import { agentCustomizeCommand } from "./agent.js";
 
 interface ConfigOptions {
   dir: string;
@@ -235,6 +236,7 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
           choices: [
             { name: "Change company preset (all agents)", value: "change" },
             { name: "Set agent override (one agent)", value: "override" },
+            { name: "Customize agent persona (studio)", value: "studio" },
             { name: "View current persona settings", value: "view" },
             { name: "Back", value: "back" },
           ],
@@ -333,6 +335,11 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
           break;
         }
 
+        case "studio": {
+          await agentCustomizeCommand(undefined, { dir: options.dir });
+          break;
+        }
+
         case "view": {
           const currentPreset = config.persona?.preset || "professional";
           console.log(chalk.bold("\n  Persona Settings:\n"));
@@ -356,6 +363,30 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
             console.log(
               chalk.dim("    No agent overrides — all agents use the company preset")
             );
+          }
+
+          // Display Agent Persona Studio config
+          if (
+            config.persona?.agents &&
+            Object.keys(config.persona.agents).length > 0
+          ) {
+            console.log(chalk.bold("\n    Agent Persona Studio:"));
+            for (const [role, ap] of Object.entries(config.persona.agents)) {
+              const parts: string[] = [];
+              if (ap.display_name) parts.push(`name: ${ap.display_name}`);
+              if (ap.role_preset) parts.push(`preset: ${ap.role_preset}`);
+              if (ap.traits) {
+                const traitParts: string[] = [];
+                if (ap.traits.communication_style) traitParts.push(ap.traits.communication_style);
+                if (ap.traits.decision_making) traitParts.push(ap.traits.decision_making);
+                if (ap.traits.risk_tolerance) traitParts.push(ap.traits.risk_tolerance);
+                if (traitParts.length > 0) parts.push(`traits: ${traitParts.join(", ")}`);
+              }
+              if (ap.background?.industry_experience?.length) {
+                parts.push(`bg: ${ap.background.industry_experience.join(", ")}`);
+              }
+              console.log(`      ${role}: ${parts.join(" | ")}`);
+            }
           }
           console.log();
           break;
@@ -406,6 +437,18 @@ export async function configCommand(options: ConfigOptions): Promise<void> {
         console.log("    Overrides:");
         for (const [role, preset] of Object.entries(config.persona.overrides)) {
           console.log(`      ${role}: ${preset}`);
+        }
+      }
+      if (
+        config.persona?.agents &&
+        Object.keys(config.persona.agents).length > 0
+      ) {
+        console.log("    Studio:");
+        for (const [role, ap] of Object.entries(config.persona.agents)) {
+          const parts: string[] = [];
+          if (ap.display_name) parts.push(ap.display_name);
+          if (ap.role_preset) parts.push(ap.role_preset);
+          console.log(`      ${role}: ${parts.join(" / ") || "configured"}`);
         }
       }
       console.log();
