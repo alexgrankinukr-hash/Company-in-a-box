@@ -13,6 +13,7 @@ import { CostTracker } from "./cost-tracker.js";
 import type { AicibConfig } from "./config.js";
 import type { PersonaOverlay, AgentPersonaConfig } from "./persona.js";
 import { loadPreset } from "./persona.js";
+import { resolveAllMCPServers, resolveMCPServersForRole, formatMCPContextFromNames, getMCPConfig } from "./mcp.js";
 import chalk from "chalk";
 
 // Tools from soul.md that don't exist in the SDK — filter these out
@@ -242,12 +243,24 @@ export function buildSubagentMap(
       ? `${displayName} — ${agent.frontmatter.title}`
       : agent.frontmatter.title;
 
+    // Resolve per-agent MCP servers once — used for both SDK enforcement and prompt context
+    const resolvedMCPMap = resolveMCPServersForRole(role, config);
+    const roleMCPServers = Object.keys(resolvedMCPMap);
+
+    // Build MCP tool context from already-resolved server names (no double resolution)
+    const mcpConfig = getMCPConfig(config);
+    const mcpContext = mcpConfig ? formatMCPContextFromNames(roleMCPServers, mcpConfig) : "";
+    const fullPrompt = mcpContext
+      ? `${agent.content}\n\n${mcpContext}`
+      : agent.content;
+
     subagents[role] = {
       description: `${titlePart} — head of ${agent.frontmatter.department} department. ${agent.frontmatter.spawns?.length ? `Manages: ${agent.frontmatter.spawns.join(", ")}` : ""}`,
-      prompt: agent.content,
+      prompt: fullPrompt,
       tools,
       model,
       maxTurns: 200,
+      ...(roleMCPServers.length > 0 ? { mcpServers: roleMCPServers } : {}),
     };
   }
 
@@ -342,6 +355,10 @@ Keep it concise — 3-5 sentences max.`;
     durationMs: 0,
   };
 
+  // Resolve MCP servers for the session (union of all agents' servers)
+  const mcpServers = resolveAllMCPServers(config);
+  const hasMCPServers = Object.keys(mcpServers).length > 0;
+
   const queryStream = getEngine().startSession({
     prompt: startPrompt,
     systemPrompt: {
@@ -357,6 +374,7 @@ Keep it concise — 3-5 sentences max.`;
     allowDangerouslySkipPermissions: true,
     maxBudgetUsd: config.settings.cost_limit_daily,
     maxTurns: 500,
+    ...(hasMCPServers ? { mcpServers } : {}),
   });
 
   for await (const message of queryStream) {
@@ -438,6 +456,10 @@ REMINDER: Your project directory is ${projectDir}. When delegating to department
     durationMs: 0,
   };
 
+  // Resolve MCP servers for the session (union of all agents' servers)
+  const mcpServers = resolveAllMCPServers(config);
+  const hasMCPServers = Object.keys(mcpServers).length > 0;
+
   const queryStream = getEngine().resumeSession(sdkSessionId, {
     prompt: briefPrompt,
     model: ceoModel,
@@ -448,6 +470,7 @@ REMINDER: Your project directory is ${projectDir}. When delegating to department
     allowDangerouslySkipPermissions: true,
     maxBudgetUsd: config.settings.cost_limit_daily,
     maxTurns: 500,
+    ...(hasMCPServers ? { mcpServers } : {}),
   });
 
   for await (const message of queryStream) {

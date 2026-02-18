@@ -10,6 +10,7 @@ import "./core/hr-register.js";
 import "./core/project-register.js";
 import "./core/routing-register.js";
 import "./core/review-chains-register.js";
+import "./core/mcp-register.js";
 
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
@@ -79,6 +80,12 @@ import {
 } from "./cli/template.js";
 import { routingCommand } from "./cli/routing.js";
 import { reviewsCommand } from "./cli/reviews.js";
+import {
+  integrationsListCommand,
+  integrationsAddCommand,
+  integrationsRemoveCommand,
+  integrationsStatusCommand,
+} from "./cli/integrations.js";
 
 const program = new Command();
 
@@ -457,6 +464,33 @@ program
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .option("-p, --port <port>", "Port number", "3000")
   .action(uiCommand);
+
+// --- MCP Integrations ---
+const integrations = program.command("integrations").description("Manage MCP tool integrations");
+integrations
+  .command("list")
+  .description("List configured and available MCP servers")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(integrationsListCommand);
+integrations
+  .command("add <server>")
+  .description("Add an MCP server integration")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(integrationsAddCommand);
+integrations
+  .command("remove <server>")
+  .description("Remove an MCP server integration")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(integrationsRemoveCommand);
+integrations
+  .command("status")
+  .description("Show MCP integration runtime status")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(integrationsStatusCommand);
+// Default action: show list when bare `aicib integrations` is run
+integrations
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(integrationsListCommand);
 
 // --- Template management ---
 const template = program.command("template").description("Manage structures, industries, and community templates");

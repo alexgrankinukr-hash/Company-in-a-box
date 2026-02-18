@@ -28,6 +28,20 @@ export type EngineSystemMessage = SDKSystemMessage;
 /** Per-model token and cost breakdown. */
 export type EngineModelUsage = ModelUsage;
 
+// --- MCP Server Config ---
+
+/** Configuration for an MCP server to connect to during a session. */
+export interface MCPServerConfig {
+  /** Command to launch the MCP server (e.g., "npx"). */
+  command: string;
+  /** Arguments for the command. */
+  args: string[];
+  /** Environment variables to pass to the server process. */
+  env?: Record<string, string>;
+  /** URL for remote MCP servers (alternative to command/args). */
+  url?: string;
+}
+
 // --- AICIB-owned types (engine-agnostic) ---
 
 /**
@@ -45,6 +59,8 @@ export interface EngineAgentDefinition {
   /** Any valid model name — short ("opus") or full ("claude-opus-4-6"). */
   model?: string;
   maxTurns?: number;
+  /** MCP server names this agent should have access to (SDK-level enforcement). */
+  mcpServers?: string[];
 }
 
 /**
@@ -61,6 +77,10 @@ export interface EngineQueryOptions {
   allowDangerouslySkipPermissions?: boolean;
   maxBudgetUsd?: number;
   maxTurns?: number;
+  /** MCP servers to connect to during the session. */
+  mcpServers?: Record<string, MCPServerConfig>;
+  /** Restrict which tools the session can use (e.g., ["mcp__github__list_issues"]). */
+  allowedTools?: string[];
 }
 
 // Re-export the raw SDK types for the adapter layer only

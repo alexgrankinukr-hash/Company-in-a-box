@@ -35,6 +35,7 @@ function toSDKAgents(
       disallowedTools: agent.disallowedTools,
       model: agent.model ? toSDKShortName(agent.model) : undefined,
       maxTurns: agent.maxTurns,
+      ...(agent.mcpServers?.length ? { mcpServers: agent.mcpServers } : {}),
     };
   }
   return result;
@@ -55,6 +56,8 @@ export class ClaudeSDKEngine implements AgentEngine {
           options.allowDangerouslySkipPermissions,
         maxBudgetUsd: options.maxBudgetUsd,
         maxTurns: options.maxTurns,
+        mcpServers: options.mcpServers,
+        allowedTools: options.allowedTools,
       },
     });
   }
@@ -76,6 +79,8 @@ export class ClaudeSDKEngine implements AgentEngine {
           options.allowDangerouslySkipPermissions,
         maxBudgetUsd: options.maxBudgetUsd,
         maxTurns: options.maxTurns,
+        mcpServers: options.mcpServers,
+        allowedTools: options.allowedTools,
       },
     });
   }

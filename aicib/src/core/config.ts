@@ -20,6 +20,7 @@ export type { PersonaConfig } from "./persona.js";
 export interface WorkerConfig {
   model: ModelName;
   enabled?: boolean;
+  mcp_servers?: string[];
 }
 
 export interface AgentConfig {
@@ -27,6 +28,7 @@ export interface AgentConfig {
   model: ModelName;
   check_in_interval?: string;
   workers?: Array<Record<string, WorkerConfig>>;
+  mcp_servers?: string[];
 }
 
 export interface CompanyConfig {
@@ -185,6 +187,19 @@ export function validateConfig(raw: Record<string, unknown>): AicibConfig {
         );
       }
 
+      if (agent.mcp_servers !== undefined) {
+        if (!Array.isArray(agent.mcp_servers)) {
+          errors.push(`agents.${name}.mcp_servers must be an array of strings`);
+        } else {
+          for (const s of agent.mcp_servers) {
+            if (typeof s !== "string") {
+              errors.push(`agents.${name}.mcp_servers entries must be strings`);
+              break;
+            }
+          }
+        }
+      }
+
       if (agent.workers && Array.isArray(agent.workers)) {
         for (const workerEntry of agent.workers) {
           if (typeof workerEntry === "object" && workerEntry !== null) {
@@ -200,6 +215,18 @@ export function validateConfig(raw: Record<string, unknown>): AicibConfig {
                   errors.push(
                     `agents.${name}.workers.${workerName}.model "${worker.model}" is not a recognized model name. Use a short name (opus, sonnet, haiku) or a full Claude model ID.`
                   );
+                }
+                if (worker.mcp_servers !== undefined) {
+                  if (!Array.isArray(worker.mcp_servers)) {
+                    errors.push(`agents.${name}.workers.${workerName}.mcp_servers must be an array of strings`);
+                  } else {
+                    for (const s of worker.mcp_servers) {
+                      if (typeof s !== "string") {
+                        errors.push(`agents.${name}.workers.${workerName}.mcp_servers entries must be strings`);
+                        break;
+                      }
+                    }
+                  }
                 }
               }
             }
