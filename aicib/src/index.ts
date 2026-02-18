@@ -69,6 +69,12 @@ import {
   agentEditCommand,
   agentCustomizeCommand,
 } from "./cli/agent.js";
+import {
+  templateListCommand,
+  templateInfoCommand,
+  templateImportCommand,
+  templateExportCommand,
+} from "./cli/template.js";
 
 const program = new Command();
 
@@ -82,7 +88,9 @@ program
 program
   .command("init")
   .description("Scaffold a new AI company")
-  .option("-t, --template <template>", "Company template to use", "saas-startup")
+  .option("-t, --template <template>", "Legacy template alias (e.g., saas-startup)")
+  .option("-s, --structure <name>", "Org shape: minimal, lean-startup, full-c-suite, custom")
+  .option("-i, --industry <name>", "Domain: saas-startup, marketing-agency, e-commerce, consulting-firm")
   .option("-n, --name <name>", "Company name", "MyStartup")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .option("--persona <preset>", "Personality preset (skip interactive prompt)")
@@ -431,5 +439,26 @@ program
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .option("-p, --port <port>", "Port number", "3000")
   .action(uiCommand);
+
+// --- Template management ---
+const template = program.command("template").description("Manage structures, industries, and community templates");
+template
+  .command("list")
+  .description("List available structures and industries")
+  .action(templateListCommand);
+template
+  .command("info <name>")
+  .description("Show details of a structure or industry")
+  .action(templateInfoCommand);
+template
+  .command("import <path>")
+  .description("Import a community template")
+  .action(templateImportCommand);
+template
+  .command("export")
+  .description("Export current project as a template")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .option("-o, --output <path>", "Output directory", "template-export")
+  .action(templateExportCommand);
 
 program.parse();

@@ -12,6 +12,9 @@ const __dirname = path.dirname(__filename);
 // Templates live in src/templates/ relative to package root
 const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
 const TEMPLATES_DIR = path.join(PACKAGE_ROOT, "src", "templates");
+const STRUCTURES_DIR = path.join(TEMPLATES_DIR, "structures");
+const INDUSTRIES_DIR = path.join(TEMPLATES_DIR, "industries");
+const SHARED_PRESETS_DIR = path.join(TEMPLATES_DIR, "presets");
 
 export interface AgentFrontmatter {
   role: string;
@@ -160,7 +163,26 @@ export function listTemplates(): string[] {
   return fs
     .readdirSync(TEMPLATES_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory())
+    .filter((d) => {
+      const dirPath = path.join(TEMPLATES_DIR, d.name);
+      return (
+        fs.existsSync(path.join(dirPath, "config.yaml")) &&
+        fs.existsSync(path.join(dirPath, "agents"))
+      );
+    })
     .map((d) => d.name);
+}
+
+export function getStructuresDir(): string {
+  return STRUCTURES_DIR;
+}
+
+export function getIndustriesDir(): string {
+  return INDUSTRIES_DIR;
+}
+
+export function getSharedPresetsDir(): string {
+  return SHARED_PRESETS_DIR;
 }
 
 export function renderAgentContent(
