@@ -131,7 +131,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 - No web dashboard — the terminal IS the interface for now
 - No MCP integrations yet — agents produce files but don't connect to email/GitHub/etc. (Slack comes in Phase 2 as the first external integration)
 - No 24/7 daemon mode — background mode returns control to you, but doesn't run forever. Full always-on comes later.
-- No Board of Directors — the advisory board feature comes in Phase 3
+- No Board of Directors — the advisory board feature comes in Phase 4
 - ~~No HR system~~ — **DONE (Phase 2 Wave 3).** Hiring, onboarding (4-phase ramp), reviews, promotions, improvement plans, state management, firing. See `docs/flows/hr.md`.
 - No multiple templates — one great template beats five mediocre ones
 - No multi-model support — Claude only for now (other AI models come in Phase 2)
@@ -425,15 +425,15 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 ---
 
-## Phase 2.5: Web UI Dashboard (Weeks 8-11)
+## Phase 2.5: Web UI Dashboard (Waves A + A.5 COMPLETE — Waves B-D deferred to Phase 3.5)
 
 **Goal:** Add a visual web dashboard that runs locally alongside the CLI. Type `aicib ui` and a webpage opens in your browser showing your entire AI company visually — org charts, cost charts, task boards, agent profiles, and more. Like going from DOS to Windows.
-
-> **Why now:** With 46 CLI commands, 22 database tables, and 10 feature areas, the terminal is getting hard to manage. A visual dashboard makes testing, monitoring, and configuration dramatically easier. Building it now means Phase 3 features ship with UI from day one.
 
 > **Architecture:** The dashboard is a Next.js app living in `aicib/ui/` that reads directly from the same SQLite database (`.aicib/state.db`) the CLI uses. No cloud servers, no login page, no database migration. Just a visual window into the same data.
 
 > **Full details:** See `implementation/Phase-2.5-Web-UI-Plan.md` for the complete plan.
+
+> **Strategy change:** Waves B-D (the remaining UI work) are deferred until after Phase 3. The reasoning: building core functionality first (scheduler, MCP integrations, safety controls, persona studio backend, templates) is more valuable than building web pages for features that already have CLI and Slack interfaces. All Phase 3 features can be tested via terminal commands and Slack. Once Phase 3 is complete, the Web UI gets built on top of ALL features at once (Phase 3.5) — which is actually more efficient than building UI incrementally and coming back to add more pages later. The **backend** parts of the Agent Persona Studio (#35) and Template expansion (#20) move into Phase 3 so they're available through the CLI even before the Web UI exists.
 
 **Summary:**
 
@@ -441,27 +441,23 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 |------|----------|----------------|--------|
 | **A: Foundation** | 1 session | Next.js 16 + Turbopack, layout shell, `aicib ui` command, home dashboard with KPI cards, SSE live updates | **COMPLETE** |
 | **A.5: Setup Wizard** | 1 session | First-run setup wizard: create company, configure team, set budget, launch — all from the browser | **COMPLETE** |
-| **B: Core Dashboards** | 3 parallel sessions | Cost charts + budget gauges, Task Kanban board, Activity feed + Journal timeline + Brief input | Planned |
-| **C: Agent Persona Studio + Management** | 4 parallel sessions | **#35 Agent Persona Studio** (agent naming, role-specific presets, background/experience config, personality trait sliders, soul.md editor in browser), Knowledge wiki + decision log, Interactive org chart, HR profiles + agent profile pages | Planned |
-| **D: Config + Templates + Polish** | 3 parallel sessions | Settings panel (autonomy matrix editor, #37 communication routing rules, notification prefs), #20 Template expansion (2-3 industry templates + structure×industry two-layer system), Project pipeline view, Enhanced setup wizard (add persona/background/communication/autonomy steps), UI polish + mobile + Cmd+K | Planned |
+| **B-D: Deferred** | 10 sessions | Cost dashboards, Task Kanban, Activity feed, Agent Persona Studio UI, Knowledge wiki, Org chart, HR profiles, Settings panel, Project pipeline, Polish | **DEFERRED → Phase 3.5** |
 
-**Total:** 12 sessions, ~4-5 weeks. After this phase, every feature from Phases 1-2 has a visual interface, users can fully customize their agents, and the setup wizard covers all 9 steps from the vision document.
-
-**Impact on later phases:** Phase 3 features now include UI from day one (each session creates `app/<feature>/page.tsx` alongside the backend). Phase 4's Web UI feature (#16) is effectively done — Phase 4 shrinks significantly. Agent Persona Studio and Template expansion are pulled forward here because they are core to the product promise ("customize your AI team").
+**What's live now:** The basic dashboard works — KPI cards, agent grid, activity feed, SSE live updates, setup wizard, and brief submission. Enough to monitor your company visually while we build the core functionality.
 
 ---
 
-## Phase 3: Real Company Behavior (Weeks 13-16)
+## Phase 3: Real Company Behavior (Weeks 8-13)
 
-**Goal:** Make the AI company act like a real company — agents connect to real tools, scheduled events happen automatically, reports generate on their own, and safety guardrails protect external actions. This is where we pull ahead of every competitor.
+**Goal:** Make the AI company act like a real company — agents connect to real tools, scheduled events happen automatically, reports generate on their own, safety guardrails protect external actions, and users can fully customize their agents' personalities and backgrounds. This is where we pull ahead of every competitor.
 
-> **Why Phase 3 matters:** Until now, agents produce files and talk to each other. In Phase 3, they start *doing real things* — sending emails via Gmail, creating issues in GitHub, posting to social media. They also start operating on schedules (daily standups, weekly reports) instead of only responding when you tell them to. And when agents interact with the outside world, configurable safety rules prevent them from doing anything you haven't approved.
+> **Why Phase 3 is next (skipping Web UI Waves B-D):** The Web UI foundation is built (Phase 2.5 Waves A + A.5) — the basic dashboard, setup wizard, and live updates all work. But building more UI pages right now would slow down core feature development. Every Phase 3 feature can be tested through the CLI and Slack, which already work great. Once all the core functionality is built, we'll come back and build the full Web UI on top of everything at once (Phase 3.5) — that's actually more efficient than adding pages one at a time. Some features may need tweaking after UI testing, but that's minor rework compared to getting stuck on UI for 5 weeks.
 
-> **What moved:** Board of Directors was originally Phase 3 but has been moved to Phase 4. It's a cool differentiator but less impactful than MCP integrations, scheduled automation, and safety controls. Getting agents connected to real tools and running on schedules matters more than an advisory board. Template System (#20) was also originally here but the core template work (structure×industry two-layer system, 2-3 industry templates) has been pulled forward to Phase 2.5 Wave D. Phase 3 retains the community sharing/marketplace aspect.
+> **What moved here from Phase 2.5:** The **backend** parts of Agent Persona Studio (#35), Template expansion (#20), and Communication Routing Rules (#37) move into Phase 3. These are config files, CLI commands, and template files — they don't need a web interface. The web UI for these features (sliders, editors, settings panels) gets built later in Phase 3.5.
 
-> **What's new:** Four features were identified in a gap analysis against the Company Vision & Requirements document. These are features described in the vision that were missing from the roadmap: Agent Scheduler (#36), Trust Evolution (#38), Review Chain Configuration (#39), and Communication Routing Rules (#37, pulled into Phase 2.5 Wave D for the UI, backend logic ships here).
+> **What's new:** Six features were identified in a gap analysis against the Company Vision & Requirements document — features described in the vision that were missing from the roadmap: Agent Persona Studio (#35), Agent Scheduler (#36), Communication Routing Rules (#37), Trust Evolution (#38), Review Chain Configuration (#39).
 
-**Success metric:** Agents use real external tools (GitHub, email, calendars), scheduled events run without human prompting (daily standups, weekly reports), safety rules block unauthorized external actions, and the founder gets automated briefings on a configurable schedule.
+**Success metric:** Agents use real external tools (GitHub, email, calendars), scheduled events run without human prompting (daily standups, weekly reports), safety rules block unauthorized external actions, the founder gets automated briefings on a configurable schedule, and users can customize every agent's name, personality, background, and traits through the CLI.
 
 ### Features
 
@@ -469,29 +465,61 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 | # | Feature | What it does | Complexity |
 |---|---------|-------------|-----------|
-| 36 | Agent Scheduler / Cron System | **NEW.** The engine that makes agents run on schedules. Without this, the CEO can't send you a morning briefing automatically, departments can't have daily standups, and reports can't generate themselves. This is the foundation for "runs while you sleep." Configurable per agent: every morning at 9am, every Monday, every 4 hours, etc. Also enables trigger-based activation — agents wake up in response to events (webhook, new task, external notification). Think of it like setting alarms for your employees — they show up and do their job at the scheduled time without you having to ping them. | Large (1.5 weeks) |
-| 15 | MCP Integration Framework | The "plug-in" system that connects agents to real tools. Uses Composio (a service providing 300+ pre-built connections) so the CMO can post to social media, the CTO can manage GitHub, the CFO can track expenses in QuickBooks, the Sales team can update CRM, etc. **Note:** Slack was already connected in Phase 2 as the first integration. This phase builds the general framework for any tool and adds many more. Includes per-agent capability configuration — which agents can use which tools, matching the vision's tiered capability system (web search for all, code execution for engineering, browser automation opt-in, etc.). | Large (1.5 weeks) |
-| 14 | External Actions & Safeguards | Rules for what agents can do outside the system. Category-based approval: social media posts need CMO review then auto-publish, code deployments need CTO review then owner approval for production, customer emails need department head review, spending over $X needs founder approval. Each category has its own approval chain. Without this, connecting agents to real tools (MCP) would be dangerous — you'd have no control over what they do. This is the safety net that makes MCP integration safe to use. | Medium (1 week) |
-| 38 | Trust Evolution System | **NEW.** Agents earn more autonomy over time as they prove reliable. Week 1: all social media posts require owner approval. Month 2: CMO-approved posts can auto-publish. Month 6: social media manager can auto-publish routine posts (CMO notified). The system tracks each agent's external action history — how many actions, how many were approved vs. rejected, success rate — and recommends trust level changes to the owner. Like a real company where new employees start with more oversight and earn more independence as they prove themselves. Builds on the autonomy matrix from Phase 2. | Medium (1 week) |
+| 35 | Agent Persona Studio (backend) | **Moved from Phase 2.5.** The three-tier agent customization system from the vision — backend and CLI only (web UI comes in Phase 3.5). **Tier 1 — Role-specific presets:** 3-5 personality presets per role (CEO: The Visionary, The Operator, The Diplomat, The Disruptor; CTO: The Architect, The Pragmatist, The Innovator; CMO: The Growth Hacker, The Brand Builder, The Performance Marketer; etc.). **Tier 2 — Mix & Match Traits:** configurable personality dimensions — communication style (direct/diplomatic/analytical/creative), decision-making (data-driven/intuitive/collaborative), risk tolerance (conservative/moderate/aggressive), assertiveness, creativity, conflict approach. Traits compile into soul.md text. **Tier 3 — Full Editor:** `aicib agent edit ceo` opens the soul.md in your text editor. **Agent naming:** `display_name` field so agents can be "CEO Sarah" or "CTO Marcus." **Background configuration:** industry experience, years of experience, specialized knowledge, work history narrative — configurable per agent. **Enhanced `aicib init`:** the setup flow adds persona selection, background configuration, and agent naming steps. All tested via `aicib init`, `aicib config`, and `aicib agent` commands. | Large (1.5 weeks) |
+| 20 | Template Expansion | **Moved from Phase 2.5.** Two-layer template system: Structure Templates (Minimal, Lean Startup, Full C-Suite, Custom) × Industry Templates (SaaS, Marketing Agency, E-commerce, Consulting Firm). These combine — "Full C-Suite + Marketing Agency" gives a complete agency management team. Ships with 3-4 industry templates beyond SaaS Startup, each with role-specific soul.md files, industry knowledge, and recommended integrations. Community template packaging and sharing format. Tested via `aicib init --template <name>`. | Medium (1 week) |
+| 37 | Communication Routing Rules | **Moved from Phase 2.5.** Configurable communication modes: **Strict Hierarchy** (all cross-department talk goes through department heads — CTO talks to CMO, not a developer to a marketer directly), **Open + CC Manager** (anyone can message anyone but managers get CC'd — the default for most real companies), **Open Communication** (no restrictions), **Custom Rules** (per department pair or per agent pair). Set during `aicib init` or changed anytime via `aicib config`. Affects how agents route messages and who gets notified. | Small (0.5 weeks) |
+| 36 | Agent Scheduler / Cron System | **NEW.** The engine that makes agents run on schedules. Without this, the CEO can't send you a morning briefing automatically, departments can't have daily standups, and reports can't generate themselves. This is the foundation for "runs while you sleep." Configurable per agent: every morning at 9am, every Monday, every 4 hours, etc. Also enables trigger-based activation — agents wake up in response to events (webhook, new task, external notification). Think of it like setting alarms for your employees — they show up and do their job at the scheduled time without you having to ping them. Tested via `aicib schedule list`, `aicib schedule create`, and watching agents activate on time. | Large (1.5 weeks) |
+| 15 | MCP Integration Framework | The "plug-in" system that connects agents to real tools. Uses Composio (a service providing 300+ pre-built connections) so the CMO can post to social media, the CTO can manage GitHub, the CFO can track expenses in QuickBooks, the Sales team can update CRM, etc. **Note:** Slack was already connected in Phase 2 as the first integration. This phase builds the general framework for any tool and adds many more. Includes per-agent capability configuration — which agents can use which tools, matching the vision's tiered capability system (web search for all, code execution for engineering, browser automation opt-in, etc.). Tested via `aicib integrations add <tool>` and giving agents briefs that require the tool. | Large (1.5 weeks) |
+| 14 | External Actions & Safeguards | Rules for what agents can do outside the system. Category-based approval: social media posts need CMO review then auto-publish, code deployments need CTO review then owner approval for production, customer emails need department head review, spending over $X needs founder approval. Each category has its own approval chain. Without this, connecting agents to real tools (MCP) would be dangerous — you'd have no control over what they do. This is the safety net that makes MCP integration safe to use. Tested via CLI approval prompts and Slack approval buttons. | Medium (1 week) |
+| 38 | Trust Evolution System | **NEW.** Agents earn more autonomy over time as they prove reliable. Week 1: all social media posts require owner approval. Month 2: CMO-approved posts can auto-publish. Month 6: social media manager can auto-publish routine posts (CMO notified). The system tracks each agent's external action history — how many actions, how many were approved vs. rejected, success rate — and recommends trust level changes to the owner. Like a real company where new employees start with more oversight and earn more independence as they prove themselves. Builds on the autonomy matrix from Phase 2. Tested via `aicib hr list` showing trust levels and `aicib config` to adjust. | Medium (1 week) |
 | 11 | Notification System | Alerts delivered to you based on urgency. Critical issues (system errors, budget exceeded, blocked deals) interrupt you immediately via push notification. High-priority items (decisions needing approval, CEO escalations) arrive within 15 minutes. Medium items (task completions, status updates) get batched into hourly/daily digests. Low-priority (routine agent activity) stays on the dashboard only. Configurable: quiet hours, per-department preferences, which urgency levels trigger push notifications. Delivery via Slack DM, email, or future Telegram. | Medium (1 week) |
-| 12 | Reporting Suite | Automated reports that generate on a schedule (requires #36 Agent Scheduler). CEO daily briefing every morning. Weekly department performance summaries. Monthly financial burn-rate reports from CFO. Sprint reviews from CTO. Marketing performance reports from CMO. Sales pipeline reports from CSO. Each report follows a template, is authored by the responsible agent, and delivered to the owner. Custom reports can be defined with specific metrics, frequency, and responsible agent. Dashboard shows real-time versions of report data. | Large (1.5 weeks) |
-| 13 | Company Events | Simulated corporate events that run on a schedule (requires #36 Agent Scheduler). Daily/weekly department standups where team members share progress and blockers. Monthly all-hands where the CEO briefs the entire company. Sprint planning where engineering + product define the next sprint. Quarterly business reviews with the full C-suite. 1-on-1s between managers and direct reports. Each event has: participants, agenda (auto-generated from current context), discussion format (async, structured rounds, free-form), output (meeting minutes, action items auto-converted to tasks), and follow-up tracking. | Medium (1 week) |
-| 39 | Review Chain Configuration | **NEW.** Configurable multi-layer quality control for agent deliverables. Different deliverable types get different review chains: internal documents = self-review only, code/technical work = self + peer review, marketing content for publishing = self + peer + department head + owner, strategic plans = department head + C-suite + CEO + owner. The owner customizes these rules: which layers apply to which deliverable types, and can change them at any time. Builds on the task reviewer field from Phase 2. | Small (0.5 weeks) |
-| 34 | Automated Performance Reviews | Managers automatically review their direct reports' completed work. When an engineer finishes a task, the CTO evaluates the deliverable and generates scores. The CEO periodically reviews department heads based on their team's output. Reviews follow the org chart: engineers reviewed by CTO, CTO reviewed by CEO, CEO reviewed by founder (manual). Integrates task completion events with the HR review system — no manual score entry needed for routine work. The founder only reviews the CEO; everything else cascades automatically. | Medium (1-1.5 weeks) |
-| 23 | Data Export/Import + Template Sharing | Ability to back up your entire company (all agent configs, soul.md files, knowledge, task history, decision logs) and restore it elsewhere. Selective export (only specific departments, only configurations, only knowledge). Anonymized export for publishing as community templates — strips proprietary information, keeps org structure, persona configs, skill assignments, and workflow automations. Import a full company package into a new instance, or merge specific components from one company into another. Also supports the community template marketplace from Phase 5. | Medium (1 week) |
+| 12 | Reporting Suite | Automated reports that generate on a schedule (requires #36 Agent Scheduler). CEO daily briefing every morning. Weekly department performance summaries. Monthly financial burn-rate reports from CFO. Sprint reviews from CTO. Marketing performance reports from CMO. Sales pipeline reports from CSO. Each report follows a template, is authored by the responsible agent, and delivered to the owner via Slack or saved as a file. Custom reports can be defined with specific metrics, frequency, and responsible agent. Tested via `aicib report daily` and scheduled report delivery to Slack. | Large (1.5 weeks) |
+| 13 | Company Events | Simulated corporate events that run on a schedule (requires #36 Agent Scheduler). Daily/weekly department standups where team members share progress and blockers. Monthly all-hands where the CEO briefs the entire company. Sprint planning where engineering + product define the next sprint. Quarterly business reviews with the full C-suite. 1-on-1s between managers and direct reports. Each event has: participants, agenda (auto-generated from current context), discussion format (async, structured rounds, free-form), output (meeting minutes, action items auto-converted to tasks), and follow-up tracking. Tested via `aicib events list` and meeting minutes output. | Medium (1 week) |
+| 39 | Review Chain Configuration | **NEW.** Configurable multi-layer quality control for agent deliverables. Different deliverable types get different review chains: internal documents = self-review only, code/technical work = self + peer review, marketing content for publishing = self + peer + department head + owner, strategic plans = department head + C-suite + CEO + owner. The owner customizes these rules: which layers apply to which deliverable types, and can change them at any time. Builds on the task reviewer field from Phase 2. Tested via `aicib config` and observing review chains in `aicib tasks`. | Small (0.5 weeks) |
+| 34 | Automated Performance Reviews | Managers automatically review their direct reports' completed work. When an engineer finishes a task, the CTO evaluates the deliverable and generates scores. The CEO periodically reviews department heads based on their team's output. Reviews follow the org chart: engineers reviewed by CTO, CTO reviewed by CEO, CEO reviewed by founder (manual). Integrates task completion events with the HR review system — no manual score entry needed for routine work. The founder only reviews the CEO; everything else cascades automatically. Tested via `aicib hr reviews` after completing tasks. | Medium (1-1.5 weeks) |
+| 23 | Data Export/Import + Template Sharing | Ability to back up your entire company (all agent configs, soul.md files, knowledge, task history, decision logs) and restore it elsewhere. Selective export (only specific departments, only configurations, only knowledge). Anonymized export for publishing as community templates — strips proprietary information, keeps org structure, persona configs, skill assignments, and workflow automations. Import a full company package into a new instance, or merge specific components from one company into another. Also supports the community template marketplace from Phase 5. Tested via `aicib export` and `aicib import`. | Medium (1 week) |
 
 ### Parallel Sessions — Phase 3
 
-> **Wave structure:** Phase 3 uses two waves because several features depend on the Agent Scheduler (#36). Wave 1 builds the scheduler and the features that don't need it. Wave 2 builds the features that run on schedules.
+> **Wave structure:** Phase 3 uses three waves. Wave 0 builds the persona/template/routing features that don't depend on anything new. Wave 1 builds the scheduler and MCP framework. Wave 2 builds everything that runs on schedules. All features are tested via CLI + Slack — no web UI needed.
 
 | When | Sessions | What's being built |
 |------|----------|-------------------|
-| **Wave 1** (Weeks 13-14) | 3 parallel sessions | **S1:** #36 Agent Scheduler + #39 Review Chain Configuration (scheduler is the foundation; review chains are small and touch different files). **S2:** #15 MCP Integration Framework (large, independent, touches integration files only). **S3:** #14 External Safeguards + #38 Trust Evolution (naturally paired — safeguards define the rules, trust evolution adjusts them over time). |
-| **Wave 2** (Weeks 15-16) | 3 parallel sessions | **S4:** #12 Reporting Suite + #34 Automated Performance Reviews (both generate scheduled content — reports and reviews). **S5:** #11 Notification System + #13 Company Events (notifications deliver event outputs; events generate notifications). **S6:** #23 Data Export/Import + Template Sharing (independent, touches new files only). |
+| **Wave 0** (Weeks 8-9) | 3 parallel sessions | **S1:** #35 Agent Persona Studio backend (role-specific presets, trait system, naming, backgrounds, enhanced `aicib init`). **S2:** #20 Template Expansion (3-4 industry templates, structure×industry two-layer system). **S3:** #37 Communication Routing Rules + #39 Review Chain Configuration (both are config-driven features that touch different files; routing modifies agent-runner message flow, review chains modify task-manager). |
+| **Wave 1** (Weeks 10-11) | 3 parallel sessions | **S4:** #36 Agent Scheduler (the foundation — scheduled + trigger-based activation, cron system, `aicib schedule` commands). **S5:** #15 MCP Integration Framework (large, independent, touches integration files only — Composio gateway, per-agent capability config, `aicib integrations` commands). **S6:** #14 External Safeguards + #38 Trust Evolution (naturally paired — safeguards define the rules, trust evolution adjusts them over time). |
+| **Wave 2** (Weeks 12-13) | 3 parallel sessions | **S7:** #12 Reporting Suite + #34 Automated Performance Reviews (both generate scheduled content — reports and reviews). **S8:** #11 Notification System + #13 Company Events (notifications deliver event outputs; events generate notifications). **S9:** #23 Data Export/Import + Template Sharing (independent, touches new files only). |
 
 ---
 
-## Phase 4: Scale & Differentiation (Weeks 17-20)
+## Phase 3.5: Web UI — Full Dashboard (Weeks 14-17)
+
+**Goal:** Build the complete web dashboard on top of ALL the core functionality from Phases 1-3. Now that agents have personas, scheduled automation, MCP integrations, safety controls, reports, events, and everything else — the Web UI gets built once, covering everything, instead of being built incrementally and revisited multiple times.
+
+> **Why this is efficient:** Building UI after all the backend features exist means: (1) every page can be designed with the final data model, (2) no throwaway UI for features that later changed, (3) one design pass covers everything, (4) the API routes are designed holistically. It's like furnishing a house after all the rooms are built, rather than furnishing each room while construction is still happening around you.
+
+> **What already exists:** Phase 2.5 Waves A + A.5 built the foundation — Next.js 16 + shadcn/ui + Tailwind v4, layout shell, `aicib ui` command, home dashboard with KPI cards, SSE live updates, setup wizard, and brief submission bar. This phase builds all the feature-specific pages on top of that foundation.
+
+**Success metric:** Every CLI and Slack feature has a visual equivalent in the Web UI. A non-technical founder could manage their entire AI company without touching the terminal.
+
+### Features (from deferred Phase 2.5 Waves B-D, expanded for Phase 3 features)
+
+| Wave | Sessions | What gets built |
+|------|----------|----------------|
+| **B: Dashboards & Activity** | 3 sessions | Cost dashboard with per-agent/per-model charts and budget visualizations. Task Kanban board (drag-and-drop columns: backlog → in-progress → review → done). Activity feed with real-time streaming. CEO journal viewer with search. |
+| **C: Agent Management** | 4 sessions | **Agent Persona Studio UI** — the crown jewel: role-specific preset picker with preview, trait sliders (communication style, risk tolerance, assertiveness, etc.) with live soul.md preview, full soul.md editor with syntax highlighting, agent naming and background configuration form. Knowledge wiki browser with article editor and version history. Org chart visualization (interactive, shows hierarchy and communication paths). HR profiles with onboarding progress, review history, and trust level indicators. |
+| **D: Configuration & Polish** | 3 sessions | Settings panel with autonomy matrix editor, communication routing configuration (strict/open/custom picker), notification preferences, scheduling configuration (cron builder UI), MCP integration manager (add/remove/configure tool connections). Enhanced setup wizard (add persona selection, background config, communication mode, scheduling preferences to the existing 4-step flow). Project pipeline view (Gantt-style phase visualization for long autonomous projects). UI polish pass — responsive design, loading states, error boundaries, accessibility. |
+
+### Parallel Sessions — Phase 3.5
+
+| When | Sessions | What's being built |
+|------|----------|-------------------|
+| **Wave B** (Week 14) | 3 parallel sessions | **S1:** Cost dashboard + budget visualizations. **S2:** Task Kanban board. **S3:** Activity feed + Journal viewer. |
+| **Wave C** (Weeks 15-16) | 4 parallel sessions | **S4:** Agent Persona Studio UI (preset picker, trait sliders, soul.md editor, naming/background form). **S5:** Knowledge wiki browser + article editor. **S6:** Org chart visualization + HR profiles. **S7:** Schedule viewer + Report templates page. |
+| **Wave D** (Week 17) | 3 parallel sessions | **S8:** Settings panel (autonomy matrix, routing config, notification prefs, scheduling config, MCP manager). **S9:** Enhanced setup wizard + Project pipeline view. **S10:** UI polish pass (responsive, loading states, error boundaries, accessibility audit). |
+
+---
+
+## Phase 4: Scale & Differentiation (Weeks 18-21)
 
 **Goal:** The features that make the product robust for real-world use and differentiate it from everything else — Board of Directors (unique to us), Telegram as a second messaging platform, smart semantic search, proper security, audit trails, multi-user access, and internal communication channels for the Web UI chat interface.
 
@@ -526,7 +554,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 
 ---
 
-## Phase 5: Monetization & Enterprise (Weeks 15+)
+## Phase 5: Monetization & Enterprise (Weeks 22+)
 
 **Goal:** Turn the open-source tool into a business — cloud-hosted version, billing, enterprise features.
 
@@ -642,8 +670,8 @@ LAYER 2: Intelligence (makes agents smart, not just functional)
 LAYER 2.5: First External Interface + Agent Customization
   [4] ──> [18] Slack Bot (Phase 2 — first interface outside the terminal)
   [18] ──> [33] Slack Interaction Improvements (chat mode, dept channels, agent names) ← Phase 2 Wave 2
-  [2] ──> [35] Agent Persona Studio (3-tier customization: presets, traits, soul.md editor) ← NEW Phase 2.5 Wave C
-  [5] ──> [37] Communication Routing Rules (strict hierarchy, open+CC, custom) ← NEW Phase 2.5 Wave D
+  [2] ──> [35] Agent Persona Studio (3-tier customization: presets, traits, soul.md editor) ← Phase 3 Wave 0
+  [5] ──> [37] Communication Routing Rules (strict hierarchy, open+CC, custom) ← Phase 3 Wave 0
 
 LAYER 3: Automation & Real-World Actions (makes the company run itself)
   [27,28] ──> [36] Agent Scheduler / Cron System (scheduled + trigger-based activation) ← NEW Phase 3
@@ -666,10 +694,10 @@ LAYER 5: Differentiation & Scale (unique features + production readiness)
   [4] ──> [40] Internal Communication Channel System (built-in Slack-like channels) ← NEW Phase 4
   [4,11] ──> [17] Telegram Bot ← Phase 4
   [1] ──> [41] Multi-User Access Control (Owner, Admin, Dept Head, Viewer) ← NEW Phase 4
-  [2,3,7] ──> [20] Template System (community sharing/marketplace) ← Phase 2.5 Wave D + Phase 3
+  [2,3,7] ──> [20] Template System (community sharing/marketplace) ← Phase 3 Wave 0
 
 LAYER 6: Interfaces (how you interact with the system)
-  [ALL] ──> [16] Web UI (dashboard — core built in Phase 2.5, extended in later phases)
+  [ALL] ──> [16] Web UI (foundation in Phase 2.5, full dashboard in Phase 3.5)
 ```
 
 ---
