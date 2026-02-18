@@ -887,6 +887,76 @@ Track edge cases discovered during implementation.
 **Handling:** `ui-launcher.ts` checks for `node_modules/` and runs `npm install` with inherited stdio before starting the dev server.
 **User sees:** Terminal shows `"Installing UI dependencies (first run)..."` followed by npm install output. Takes ~15-20 seconds, then dashboard starts normally.
 
+## Communication Routing (Phase 3 Wave 0 Session 3)
+
+### Routing — Agent Without Department
+
+**Scenario:** An agent without `department` in its frontmatter sends a cross-department message.
+**Handling:** `evaluateRoute()` returns `{ allowed: true, requiresCC: [] }` when either department is empty. Routing rules don't apply.
+**User sees:** Nothing — message proceeds without restriction. By design.
+
+### Routing — Unknown Department in Strict Hierarchy
+
+**Scenario:** Under `strict_hierarchy`, a message involves a department not in the `DEPARTMENT_HEADS` map.
+**Handling:** `getDepartmentHead()` returns null for unknown departments. Neither sender nor receiver is recognized as a department head, so the message is blocked.
+**User sees:** Violation logged: "Cross-department communication requires routing through department heads." CEO can always route cross-dept.
+
+### Routing — Custom Rule with "custom" Mode
+
+**Scenario:** User writes a custom rule with `mode: "custom"` (recursive).
+**Handling:** `validateRoutingConfig()` catches this at config validation: "custom_rules[N].mode cannot be 'custom'."
+**User sees:** Config validation error.
+
+### Routing — NL Pattern False Positive
+
+**Scenario:** Agent says "I'm contacting support" — "contacting support" matches the NL pattern but "support" isn't an agent.
+**Handling:** `agentDepts.get("support")` returns undefined. Empty department means same-department check passes — no violation.
+**User sees:** Nothing — no false positive.
+
+## Review Chains (Phase 3 Wave 0 Session 3)
+
+### Review — Duplicate REVIEW::APPROVE Markers
+
+**Scenario:** Agent writes `REVIEW::APPROVE task_id=5` twice in one message, or writes both the structured marker and "approved task #5".
+**Handling:** `flushPendingActions()` deduplicates by `(task_id, type)` before processing. Only the first action per task per type per batch is kept.
+**User sees:** Nothing — chain advances exactly once.
+
+### Review — No Reviewer Available on Submit
+
+**Scenario:** A task is submitted for review but no reviewer is available for any layer in the chain (e.g., empty agents list).
+**Handling:** After the skip-loop, if `firstReviewer` is null, task is set to `status: "done"` with comment "Review chain auto-completed (no available reviewers)."
+**User sees:** Task goes straight to done. Comment explains why.
+
+### Review — Keyword Misclassification
+
+**Scenario:** Task titled "Implement marketing plan" could match "implement" (code) or "marketing plan" (marketing_internal).
+**Handling:** `TYPE_KEYWORDS` is ordered with multi-word phrase categories before broad single-word categories. "marketing plan" is checked before "implement."
+**User sees:** Correct chain type: marketing_internal, not code.
+
+### Review — Comments in Same Second
+
+**Scenario:** Chain start marker, skip comment, and review request are all written within the same second.
+**Handling:** `getComments()` sorts by `created_at ASC, id ASC`. The auto-incrementing `id` is a deterministic tiebreaker.
+**User sees:** Nothing — comments are always in the correct order.
+
+### Review — Rejection Resets Chain
+
+**Scenario:** Task is approved through layer 1, then rejected at layer 2. Assignee fixes and re-submits.
+**Handling:** Re-submit writes a new CHAIN_START_MARKER. `getReviewChainState()` only counts approvals after the most recent marker. Stale layer-1 approval doesn't carry over.
+**User sees:** Chain restarts from layer 1 after re-submission.
+
+### Review — Pending Actions Lost on Exit
+
+**Scenario:** Process exits within the 500ms debounce window, before `flushPendingActions()` fires.
+**Handling:** Not handled — known architectural limitation shared with task-register.ts. Actions in the queue are lost. Should be addressed as a cross-cutting `beforeExit` handler issue.
+**User sees:** Last batch of review actions may not be recorded.
+
+### Review — CLI `aicib tasks review` Bypasses Chain
+
+**Scenario:** Founder runs `aicib tasks review` and approves/rejects directly.
+**Handling:** `submitReview()` sets done/in_progress directly, bypassing the chain. By design — the CLI is the human founder's override. The founder IS the "owner" layer.
+**User sees:** Task goes directly to done or in_progress.
+
 ### Dashboard — Tasks Table Missing
 
 **Scenario:** Database exists but `tasks` table hasn't been created yet (happens if `aicib start` was run before task management was added, or on very old DB versions).

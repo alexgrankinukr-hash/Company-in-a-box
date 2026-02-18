@@ -137,6 +137,7 @@ export interface TasksConfig {
   max_context_tasks: number;
   deadline_urgency_hours: number;
   default_review_chains: Record<string, ReviewLayer[]>;
+  review_chain_overrides: Record<string, Record<string, ReviewLayer[]>>;
 }
 
 export const TASKS_CONFIG_DEFAULTS: TasksConfig = {
@@ -152,6 +153,7 @@ export const TASKS_CONFIG_DEFAULTS: TasksConfig = {
     strategic_plan: ["department_head", "csuite", "owner"],
     internal_document: ["self"],
   },
+  review_chain_overrides: {},
 };
 
 // Priority weights for the scoring algorithm
@@ -692,7 +694,7 @@ export class TaskManager {
   getComments(taskId: number): TaskComment[] {
     return this.db
       .prepare(
-        `SELECT * FROM task_comments WHERE task_id = ? ORDER BY created_at ASC`
+        `SELECT * FROM task_comments WHERE task_id = ? ORDER BY created_at ASC, id ASC`
       )
       .all(taskId) as TaskComment[];
   }

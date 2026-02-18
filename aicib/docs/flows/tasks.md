@@ -162,7 +162,33 @@ tasks:
 - **"Task ID must be a number"** — Use the numeric ID (e.g., `5`), not a name.
 - **"Cycle detected"** — You're trying to create a circular dependency. Task A can't block B if B already blocks A (directly or indirectly).
 
+## Review Chains
+
+Tasks go through multi-layer review chains before being marked as done. Different task types have different chains:
+
+- **Internal documents:** self-review only
+- **Code:** self + peer review
+- **Marketing for publishing:** self + peer + department head + owner
+- **Strategic plans:** department head + C-suite + owner
+
+The system infers the chain type from the task title. You can customize chains in config:
+
+```yaml
+tasks:
+  default_review_chains:
+    code: [self, peer]
+    marketing_external: [self, peer, department_head, owner]
+```
+
+```bash
+aicib reviews              # See chain config and in-review tasks with progress
+```
+
+Each layer assigns a specific reviewer. If no reviewer is available for a layer (e.g., no peer in a solo department), that layer is automatically skipped. If no reviewer is available for any layer, the chain auto-completes.
+
 ## Related
 
 - `docs/technical/task-management.md` — Technical architecture details
+- `docs/technical/review-chains.md` — Review chain architecture
+- `docs/flows/routing.md` — Communication routing rules
 - `docs/edge-cases.md` — Full list of edge cases
