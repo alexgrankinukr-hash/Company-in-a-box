@@ -20,6 +20,8 @@ import "./task-register.js";
 import "./intelligence-register.js";
 import "./knowledge-register.js";
 import "./project-register.js";
+import "./routing-register.js";
+import "./review-chains-register.js";
 
 import { loadConfig } from "./config.js";
 import type { AicibConfig } from "./config.js";

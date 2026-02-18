@@ -8,6 +8,8 @@ import "./core/intelligence-register.js";
 import "./core/knowledge-register.js";
 import "./core/hr-register.js";
 import "./core/project-register.js";
+import "./core/routing-register.js";
+import "./core/review-chains-register.js";
 
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
@@ -75,6 +77,8 @@ import {
   templateImportCommand,
   templateExportCommand,
 } from "./cli/template.js";
+import { routingCommand } from "./cli/routing.js";
+import { reviewsCommand } from "./cli/reviews.js";
 
 const program = new Command();
 
@@ -431,6 +435,20 @@ agent
 agent
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(agentDashboardCommand);
+
+// --- Communication Routing ---
+program
+  .command("routing")
+  .description("Show communication routing policy and department roster")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(routingCommand);
+
+// --- Review Chains ---
+program
+  .command("reviews")
+  .description("Show review chain configuration and in-review tasks")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(reviewsCommand);
 
 // --- Web UI ---
 program

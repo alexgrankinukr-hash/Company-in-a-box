@@ -24,6 +24,7 @@ import {
   type TaskPriority,
   type ReviewLayer,
 } from "./task-manager.js";
+import { validateReviewChainOverrides } from "./review-chains.js";
 
 // --- Config extension ---
 
@@ -80,6 +81,15 @@ registerConfigExtension({
               }
             }
           }
+        }
+      }
+
+      // Validate review_chain_overrides (Feature #39)
+      if (obj.review_chain_overrides !== undefined) {
+        if (typeof obj.review_chain_overrides !== "object" || obj.review_chain_overrides === null) {
+          errors.push("tasks.review_chain_overrides must be an object");
+        } else {
+          errors.push(...validateReviewChainOverrides(obj.review_chain_overrides));
         }
       }
     }
