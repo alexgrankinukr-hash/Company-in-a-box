@@ -11,7 +11,7 @@ import { loadAgentDefinitions, getTemplatePath } from "./agents.js";
 import { getAgentsDir } from "./team.js";
 import { CostTracker } from "./cost-tracker.js";
 import type { AicibConfig } from "./config.js";
-import type { PersonaOverlay } from "./persona.js";
+import type { PersonaOverlay, AgentPersonaConfig } from "./persona.js";
 import { loadPreset } from "./persona.js";
 import chalk from "chalk";
 
@@ -130,7 +130,12 @@ function notifyMessageHandlers(msg: EngineMessage, config: AicibConfig): void {
  */
 function loadPersonaFromConfig(
   config: AicibConfig
-): { preset?: PersonaOverlay; overrides?: Map<string, PersonaOverlay> } {
+): {
+  preset?: PersonaOverlay;
+  overrides?: Map<string, PersonaOverlay>;
+  agentPersonas?: Record<string, AgentPersonaConfig>;
+  templateDir: string;
+} {
   const presetName = config.persona?.preset || "professional";
   const templateDir = getTemplatePath(config.company.template);
 
@@ -166,7 +171,9 @@ function loadPersonaFromConfig(
     }
   }
 
-  return { preset, overrides };
+  const agentPersonas = config.persona?.agents;
+
+  return { preset, overrides, agentPersonas, templateDir };
 }
 
 export interface SessionResult {
@@ -187,11 +194,17 @@ export function buildSubagentMap(
   projectDir: string,
   config: AicibConfig,
   // preloaded avoids double-parsing when caller already loaded persona data
-  preloaded?: { preset?: PersonaOverlay; overrides?: Map<string, PersonaOverlay> }
+  preloaded?: {
+    preset?: PersonaOverlay;
+    overrides?: Map<string, PersonaOverlay>;
+    agentPersonas?: Record<string, AgentPersonaConfig>;
+    templateDir?: string;
+  }
 ): Record<string, EngineAgentDefinition> {
   const agentsDir = getAgentsDir(projectDir);
-  const { preset, overrides } = preloaded || loadPersonaFromConfig(config);
-  const agents = loadAgentDefinitions(agentsDir, preset, overrides);
+  const loaded = preloaded || loadPersonaFromConfig(config);
+  const { preset, overrides, agentPersonas, templateDir } = loaded;
+  const agents = loadAgentDefinitions(agentsDir, preset, overrides, agentPersonas, templateDir);
 
   // Warn for override keys that don't match any loaded agent role (catches typos in config)
   if (overrides && overrides.size > 0) {
@@ -223,8 +236,14 @@ export function buildSubagentMap(
     // Model from config overrides soul.md default
     const model = agentConfig?.model || agent.frontmatter.model;
 
+    // Use display name from persona studio if configured
+    const displayName = agentPersonas?.[role]?.display_name;
+    const titlePart = displayName
+      ? `${displayName} — ${agent.frontmatter.title}`
+      : agent.frontmatter.title;
+
     subagents[role] = {
-      description: `${agent.frontmatter.title} — head of ${agent.frontmatter.department} department. ${agent.frontmatter.spawns?.length ? `Manages: ${agent.frontmatter.spawns.join(", ")}` : ""}`,
+      description: `${titlePart} — head of ${agent.frontmatter.department} department. ${agent.frontmatter.spawns?.length ? `Manages: ${agent.frontmatter.spawns.join(", ")}` : ""}`,
       prompt: agent.content,
       tools,
       model,
@@ -246,7 +265,10 @@ export async function startCEOSession(
 ): Promise<SessionResult> {
   const agentsDir = getAgentsDir(projectDir);
   const personaData = loadPersonaFromConfig(config);
-  const agents = loadAgentDefinitions(agentsDir, personaData.preset, personaData.overrides);
+  const agents = loadAgentDefinitions(
+    agentsDir, personaData.preset, personaData.overrides,
+    personaData.agentPersonas, personaData.templateDir
+  );
   const ceoAgent = agents.get("ceo");
 
   if (!ceoAgent) {
@@ -381,7 +403,10 @@ export async function sendBrief(
 ): Promise<SessionResult> {
   const agentsDir = getAgentsDir(projectDir);
   const personaData = loadPersonaFromConfig(config);
-  const agents = loadAgentDefinitions(agentsDir, personaData.preset, personaData.overrides);
+  const agents = loadAgentDefinitions(
+    agentsDir, personaData.preset, personaData.overrides,
+    personaData.agentPersonas, personaData.templateDir
+  );
   const ceoAgent = agents.get("ceo");
 
   if (!ceoAgent) {

@@ -62,6 +62,13 @@ import {
   projectCancelCommand,
 } from "./cli/project.js";
 import { uiCommand } from "./cli/ui-launcher.js";
+import {
+  agentDashboardCommand,
+  agentListCommand,
+  agentShowCommand,
+  agentEditCommand,
+  agentCustomizeCommand,
+} from "./cli/agent.js";
 
 const program = new Command();
 
@@ -389,6 +396,33 @@ project
 project
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(projectStatusCommand);
+
+// --- Agent Persona Studio ---
+const agent = program.command("agent").description("Agent Persona Studio: customize agent personalities, names, and backgrounds");
+agent
+  .command("list")
+  .description("List all agents with persona info")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(agentListCommand);
+agent
+  .command("show <role>")
+  .description("Show full persona detail for an agent")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(agentShowCommand);
+agent
+  .command("edit <role>")
+  .description("Open agent soul.md file in your editor")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(agentEditCommand);
+agent
+  .command("customize [role]")
+  .description("Interactive wizard to customize agent persona")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(agentCustomizeCommand);
+// Default action: show dashboard when bare `aicib agent` is run
+agent
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(agentDashboardCommand);
 
 // --- Web UI ---
 program
