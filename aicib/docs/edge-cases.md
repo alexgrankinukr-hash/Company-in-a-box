@@ -135,6 +135,44 @@ Track edge cases discovered during implementation.
 **Handling:** `startCEOSession()` trims to 5 entries if formatted text exceeds 6000 chars
 **User sees:** Nothing — handled transparently
 
+## Agent Persona Studio (Phase 3 Wave 0)
+
+### Display Name — Special Characters ($, \)
+
+**Scenario:** User sets `display_name: "Anna$2"` — the `$` could be interpreted as a regex replacement pattern.
+**Handling:** `applyDisplayName()` uses split/findIndex/rejoin instead of `String.replace()`. No regex replacement patterns are evaluated.
+**User sees:** Heading correctly shows `# Anna$2 — Chief Executive Officer (CEO)`.
+
+### Role Preset — Custom Slug
+
+**Scenario:** User creates a custom preset file and sets `role_preset: my-custom-one` — the slug isn't in any hardcoded list.
+**Handling:** Validation only checks slug format (`/^[a-z][a-z0-9-]*$/`). File existence is checked at load time by `loadRolePreset()`, which throws a clear error if missing.
+**User sees:** If file exists: preset loads normally. If missing: warning during `aicib start`/`aicib brief`.
+
+### Traits — Scalar Instead of Object
+
+**Scenario:** User writes `traits: "direct"` in YAML instead of a nested object.
+**Handling:** `validateConfig()` checks `typeof ap.traits !== "object"` and rejects with explicit error.
+**User sees:** Config validation error: `persona.agents.ceo.traits must be an object`.
+
+### Editor — Arguments in $EDITOR
+
+**Scenario:** `EDITOR="code --wait"` or `VISUAL="nvim --noplugin"`.
+**Handling:** `agentEditCommand()` splits the editor string on whitespace. First token is the command, rest are prepended to args.
+**User sees:** Editor opens normally with the soul.md file.
+
+### Preset File — Corrupt or Permission Error
+
+**Scenario:** A `.md` file in `presets/roles/ceo/` has bad encoding or a filesystem permission error.
+**Handling:** `listRolePresets()` catches the error and logs `Warning: Skipping invalid preset "..." for role "...": [error]`. Other valid presets still load.
+**User sees:** Warning in terminal. The corrupt preset doesn't appear in selection lists.
+
+### Init — Agent Personas Config Round-Trip
+
+**Scenario:** User customizes agent personas during `aicib init`. The YAML needs to be written correctly.
+**Handling:** Base config is written first with name/preset substitutions. Then `loadConfig()` parses it, sets `persona.agents`, and `saveConfig()` writes it back. No regex YAML injection.
+**User sees:** Clean YAML in `aicib.config.yaml` with properly nested `persona.agents` section.
+
 ## Personas (S2)
 
 ### Init/Start — Missing Persona Preset

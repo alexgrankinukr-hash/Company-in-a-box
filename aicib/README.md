@@ -177,6 +177,10 @@ The CFO builds financial models with revenue projections, unit economics, and se
 | `aicib cost` | Detailed cost breakdown per agent, per session |
 | `aicib add-agent` | Add a new agent to a department |
 | `aicib remove-agent` | Remove an agent from the team |
+| `aicib agent` | Agent Persona Studio — customize personalities, names, backgrounds |
+| `aicib agent show <role>` | View full persona detail for an agent |
+| `aicib agent customize [role]` | Interactive wizard to customize agent persona |
+| `aicib agent edit <role>` | Open agent soul.md in your editor |
 | `aicib config` | Interactive configuration editor |
 
 ### Background Mode
@@ -274,14 +278,34 @@ settings:
 
 ### Customizing Agent Personalities
 
-Each agent's behavior is defined in a soul.md file at `.claude/agents/<role>.md`. You can:
+Each agent's behavior is defined in a soul.md file at `.claude/agents/<role>.md`. You can edit these directly or use the **Agent Persona Studio**:
 
-- Edit any section to change how the agent thinks, communicates, or makes decisions
-- Add domain expertise relevant to your industry
-- Adjust escalation thresholds and decision authority
-- Change communication styles and behavioral quirks
+```bash
+aicib agent customize ceo
+```
 
-The YAML frontmatter controls the agent's model, tools, and reporting chain. The markdown body is the agent's personality.
+The studio lets you set:
+- **Display names** — give agents human names (e.g., "Sarah" for CEO)
+- **Role presets** — pick personality archetypes (e.g., "The Visionary", "The Operator")
+- **Personality traits** — communication style, risk tolerance, assertiveness, creativity
+- **Professional background** — years of experience, industry expertise, work history
+
+Or configure in YAML:
+
+```yaml
+persona:
+  preset: startup
+  agents:
+    ceo:
+      display_name: "Sarah"
+      role_preset: the-visionary
+      traits:
+        communication_style: direct
+        assertiveness: 4
+    cto:
+      display_name: "Marcus"
+      role_preset: the-architect
+```
 
 ---
 
