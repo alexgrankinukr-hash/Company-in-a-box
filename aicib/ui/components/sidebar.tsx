@@ -20,7 +20,7 @@ const navItems = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/costs", label: "Costs", icon: DollarSign },
-  { href: "/activity", label: "Activity", icon: Activity },
+  { href: "/activity", label: "Logs", icon: Activity },
   { href: "/agents", label: "Team", icon: Users },
   { href: "/hr", label: "HR", icon: UserCog },
   { href: "/knowledge", label: "Wiki", icon: BookOpen },
@@ -34,9 +34,9 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-56 flex-col border-r border-border bg-sidebar">
-      <div className="flex h-14 items-center gap-2 border-b border-border px-5">
+      <div className="flex h-12 items-center gap-2 border-b border-border px-5">
         <div className="h-2 w-2 rounded-full bg-agent-ceo" />
-        <span className="text-sm font-semibold tracking-tight text-foreground">
+        <span className="text-[13px] font-semibold tracking-tight text-foreground">
           AICIB
         </span>
       </div>
@@ -54,22 +54,21 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-1.5 text-[13px] transition-colors",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  ? "border-l-2 border-agent-ceo bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  : "border-l-2 border-transparent text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className="h-3.5 w-3.5 shrink-0" />
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-border p-4">
-        <p className="text-xs text-muted-foreground">AI Company-in-a-Box</p>
-        <p className="text-xs text-muted-foreground/60">v0.1.0</p>
+      <div className="border-t border-border px-5 py-3">
+        <p className="text-[11px] text-muted-foreground/40">v0.1.0</p>
       </div>
     </aside>
   );

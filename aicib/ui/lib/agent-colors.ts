@@ -67,6 +67,22 @@ const colorMap: Record<string, AgentColorClasses> = {
   },
 };
 
+const hexColorMap: Record<string, string> = {
+  ceo: "#a855f7",
+  cto: "#3b82f6",
+  cfo: "#22c55e",
+  cmo: "#f59e0b",
+  "backend-engineer": "#06b6d4",
+  "frontend-engineer": "#818cf8",
+  "financial-analyst": "#4ade80",
+  "content-writer": "#fbbf24",
+  system: "#6b7280",
+};
+
+export function getAgentHexColor(role: string): string {
+  return hexColorMap[role] || "#6b7280";
+}
+
 const defaultColors: AgentColorClasses = {
   bg: "bg-muted",
   text: "text-muted-foreground",

@@ -1,5 +1,5 @@
 company:
-  name: "TestCo"
+  name: "MyStartup"
   template: "saas-startup"
 
 agents:
@@ -27,6 +27,9 @@ agents:
     workers:
       - content-writer:
           model: sonnet
+
+persona:
+  preset: startup
 
 settings:
   cost_limit_daily: 50

@@ -133,6 +133,16 @@
   --sidebar-ring: #525252;
 }
 
+@keyframes glow-ring {
+  0%, 100% { box-shadow: 0 0 8px 2px var(--glow-color, #a855f7); }
+  50% { box-shadow: 0 0 20px 6px var(--glow-color, #a855f7); }
+}
+
+@keyframes pulse-travel {
+  from { offset-distance: 0%; opacity: 1; }
+  to { offset-distance: 100%; opacity: 0.3; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
