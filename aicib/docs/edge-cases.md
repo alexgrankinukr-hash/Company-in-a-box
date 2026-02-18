@@ -2,6 +2,32 @@
 
 Track edge cases discovered during implementation.
 
+## Template System
+
+### Template Import — Path Traversal via Template Name
+
+**Scenario:** A crafted `template.yaml` has `name: "../../etc"` to write outside the intended directory.
+**Handling:** `sanitizeTemplateName()` rejects any name not matching `[a-z0-9-]`. Throws before any path construction or file writes.
+**User sees:** `Invalid template name "../../etc". Only lowercase letters, numbers, and hyphens are allowed.`
+
+### Legacy Template Detection — New Dirs Matching
+
+**Scenario:** `--template industries` or `--template structures` routes to `legacyInit()`, which crashes because these directories don't have `config.yaml`.
+**Handling:** `listTemplates()` filters to only return directories containing both `config.yaml` and an `agents/` subdirectory. New dirs (`industries`, `structures`, `presets`) are excluded.
+**User sees:** `Error: Template "industries" not found.`
+
+### Org Chart — Non-Standard CEO Role Key
+
+**Scenario:** A custom structure uses `managing_director` as the top role instead of `ceo`.
+**Handling:** `printOrgChart()` detects the CEO dynamically via `reports_to: "human-founder"` and uses the detected role key for finding C-suite reports. Not hardcoded to `"ceo"`.
+**User sees:** Correct org chart regardless of what the top-level role is named.
+
+### User Template Discovery — HOME Not Set
+
+**Scenario:** `HOME` and `USERPROFILE` environment variables are both unset (rare, but possible in restricted containers).
+**Handling:** `getUserTemplatesDir()` returns `null`. All listing/loading functions skip the user templates directory gracefully. Only package templates are shown.
+**User sees:** Only bundled templates available. No error.
+
 ## Agent Runner / SDK Integration
 
 ### Start — Double Start Prevention
