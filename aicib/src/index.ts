@@ -10,6 +10,7 @@ import "./core/hr-register.js";
 import "./core/project-register.js";
 import "./core/routing-register.js";
 import "./core/review-chains-register.js";
+import "./core/safeguards-register.js";
 
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
@@ -79,6 +80,19 @@ import {
 } from "./cli/template.js";
 import { routingCommand } from "./cli/routing.js";
 import { reviewsCommand } from "./cli/reviews.js";
+import {
+  safeguardsCommand,
+  safeguardsPendingCommand,
+  safeguardsApproveCommand,
+  safeguardsRejectCommand,
+  safeguardsHistoryCommand,
+} from "./cli/safeguards.js";
+import {
+  trustCommand,
+  trustHistoryCommand,
+  trustRecommendationsCommand,
+  trustSetCommand,
+} from "./cli/trust.js";
 
 const program = new Command();
 
@@ -449,6 +463,59 @@ program
   .description("Show review chain configuration and in-review tasks")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(reviewsCommand);
+
+// --- External Safeguards ---
+const safeguards = program.command("safeguards").description("External action safeguards: approval chains and pending actions");
+safeguards
+  .command("pending")
+  .description("List pending actions awaiting approval")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(safeguardsPendingCommand);
+safeguards
+  .command("approve <id>")
+  .description("Approve a pending action")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(safeguardsApproveCommand);
+safeguards
+  .command("reject <id>")
+  .description("Reject a pending action")
+  .option("--reason <reason>", "Rejection reason")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(safeguardsRejectCommand);
+safeguards
+  .command("history")
+  .description("Show resolved action history")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(safeguardsHistoryCommand);
+// Default action: show dashboard when bare `aicib safeguards` is run
+safeguards
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(safeguardsCommand);
+
+// --- Trust Evolution ---
+const trust = program.command("trust").description("Trust evolution: agent trust levels and upgrade recommendations");
+trust
+  .command("history <agent>")
+  .description("Show action history for an agent")
+  .option("--category <category>", "Filter by action category")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(trustHistoryCommand);
+trust
+  .command("recommendations")
+  .description("Show agents ready for trust level upgrades")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(trustRecommendationsCommand);
+trust
+  .command("set <agent>")
+  .description("Manually set trust level override for an agent")
+  .requiredOption("--level <level>", "Trust level (probationary, established, trusted, veteran)")
+  .requiredOption("--category <category>", "Action category")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(trustSetCommand);
+// Default action: show dashboard when bare `aicib trust` is run
+trust
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(trustCommand);
 
 // --- Web UI ---
 program
