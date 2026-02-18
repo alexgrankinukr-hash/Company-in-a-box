@@ -957,6 +957,56 @@ Track edge cases discovered during implementation.
 **Handling:** `submitReview()` sets done/in_progress directly, bypassing the chain. By design — the CLI is the human founder's override. The founder IS the "owner" layer.
 **User sees:** Task goes directly to done or in_progress.
 
+## External Safeguards & Trust Evolution (Phase 3 Wave 1 Session 6)
+
+### Safeguards — Expiry Datetime Format
+
+**Scenario:** `expires_at` is stored in the DB and compared with `datetime('now')`. If formats differ (ISO `T` separator vs SQLite space), lexicographic comparison fails silently — expired actions never get cleaned up.
+**Handling:** `expires_at` is formatted with `.toISOString().replace("T", " ").slice(0, 19)` to match SQLite's `datetime('now')` format exactly.
+**User sees:** Nothing — expiry works correctly. Expired actions are cleaned up on read.
+
+### Safeguards — Trust Disabled But Chain Still Modified
+
+**Scenario:** User sets `trust.enabled: false` but `resolveTrustLevel()` still computes trust from history and modifies approval chains.
+**Handling:** `processSafeguardAction` short-circuits to `"probationary"` when trust is disabled. Probationary has empty modification lists, so no chain changes occur.
+**User sees:** Full approval chains always apply when trust is disabled.
+
+### Safeguards — Autonomy Cap Not Applied
+
+**Scenario:** A restricted/guided agent gets trust-modified (shortened) approval chains because autonomy config wasn't passed to `resolveTrustLevel()`.
+**Handling:** `lastAutonomyConfig` is cached from both the context provider and message handler, then passed to `resolveTrustLevel()`. Restricted/guided agents are capped at `established` trust.
+**User sees:** Restricted agents always go through full approval chains regardless of their action history.
+
+### Safeguards — Action Expiry (48h default)
+
+**Scenario:** A pending action sits unreviewed for more than 48 hours.
+**Handling:** Expire-on-read pattern: every query that reads pending actions first runs `UPDATE ... SET status = 'expired' WHERE expires_at < datetime('now')`. No background job needed.
+**User sees:** `aicib safeguards pending` won't show expired actions. `aicib safeguards approve <id>` returns "not found, not pending, or expired."
+
+### Safeguards — Max Pending Per Agent
+
+**Scenario:** Agent already has 10 pending actions (default limit) and tries to request another.
+**Handling:** `processSafeguardAction` checks `pendingCount >= max_pending_per_agent` before inserting. Silently drops the request.
+**User sees:** Nothing — the 11th request is not created. Agent should resolve existing actions first.
+
+### Trust — Recommendation Threshold (2 of 3)
+
+**Scenario:** Agent meets action count and approval rate but not age requirement for the next trust level.
+**Handling:** `getTrustRecommendations()` surfaces agents meeting 2 of 3 criteria. Operator can apply early override with `aicib trust set`.
+**User sees:** Agent appears in `aicib trust recommendations` with progress details.
+
+### Trust — Manual Override Capped by max_level
+
+**Scenario:** Operator sets `aicib trust set cto --category code_deployment --level veteran` but config has `max_level: trusted`.
+**Handling:** `resolveTrustLevel()` applies the `max_level` cap AFTER override resolution. Override of "veteran" is capped to "trusted".
+**User sees:** `aicib trust` shows effective level as "trusted" even though the override says "veteran".
+
+### Safeguards — NL Fallback Hardcodes agent=ceo
+
+**Scenario:** Natural language pattern "requesting approval for social_media" is detected without an explicit agent.
+**Handling:** NL fallback assigns `agent: "ceo"` — same pattern as other register files (e.g., HR NL assigns `department: "general"`). REQUEST only creates pending actions, never auto-approves. Structured SAFEGUARD:: markers are the primary interface.
+**User sees:** Nothing — pending action created for CEO. CEO can approve/reject via structured markers.
+
 ### Dashboard — Tasks Table Missing
 
 **Scenario:** Database exists but `tasks` table hasn't been created yet (happens if `aicib start` was run before task management was added, or on very old DB versions).
