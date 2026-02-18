@@ -10,6 +10,7 @@ import "./core/hr-register.js";
 import "./core/project-register.js";
 import "./core/routing-register.js";
 import "./core/review-chains-register.js";
+import "./core/scheduler-register.js";
 
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
@@ -79,6 +80,19 @@ import {
 } from "./cli/template.js";
 import { routingCommand } from "./cli/routing.js";
 import { reviewsCommand } from "./cli/reviews.js";
+import {
+  scheduleDashboardCommand,
+  scheduleListCommand,
+  scheduleCreateCommand,
+  scheduleShowCommand,
+  scheduleDeleteCommand,
+  scheduleEnableCommand,
+  scheduleDisableCommand,
+  scheduleHistoryCommand,
+  scheduleStartCommand,
+  scheduleStopCommand,
+  scheduleStatusCommand,
+} from "./cli/schedule.js";
 
 const program = new Command();
 
@@ -449,6 +463,73 @@ program
   .description("Show review chain configuration and in-review tasks")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(reviewsCommand);
+
+// --- Agent Scheduler ---
+const schedule = program.command("schedule").description("Manage scheduled agent runs (morning briefings, weekly reports, etc.)");
+schedule
+  .command("list")
+  .description("List all schedules")
+  .option("--enabled", "Show only enabled schedules")
+  .option("--agent <role>", "Filter by agent role")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleListCommand);
+schedule
+  .command("create")
+  .description("Create a new schedule")
+  .option("--name <name>", "Schedule name")
+  .option("--cron <expression>", "Cron expression (e.g., '0 9 * * 1-5')")
+  .option("--directive <text>", "Agent directive")
+  .option("--agent <role>", "Target agent (default: ceo)")
+  .option("--trigger <type:value>", "Trigger type and optional value (e.g., task_completed)")
+  .option("-i, --interactive", "Interactive creation with prompts")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleCreateCommand);
+schedule
+  .command("show <id>")
+  .description("Show full schedule details + recent executions")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleShowCommand);
+schedule
+  .command("delete <id>")
+  .description("Delete a schedule")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleDeleteCommand);
+schedule
+  .command("enable <id>")
+  .description("Enable a schedule")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleEnableCommand);
+schedule
+  .command("disable <id>")
+  .description("Disable a schedule")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleDisableCommand);
+schedule
+  .command("history")
+  .description("Show execution history")
+  .option("--schedule <id>", "Filter by schedule ID")
+  .option("--limit <n>", "Max entries to show", "20")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleHistoryCommand);
+schedule
+  .command("start")
+  .description("Start the scheduler daemon")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleStartCommand);
+schedule
+  .command("stop")
+  .description("Stop the scheduler daemon")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleStopCommand);
+schedule
+  .command("status")
+  .description("Show scheduler daemon status")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleStatusCommand);
+// Default action: show dashboard when bare `aicib schedule` is run
+schedule
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(scheduleDashboardCommand);
 
 // --- Web UI ---
 program
