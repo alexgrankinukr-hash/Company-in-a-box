@@ -1,275 +1,323 @@
 ---
 description: Automated three-way code review with Codex, Cursor, and Claude - consolidates findings into action plan
-allowed-tools: Bash(git:*,codex *,cursor-agent *,mkdir *,rm *,cat *,echo *,wait *,sleep *,ps *,wc *), Read, Grep, Glob, Write, Task, Skill
+allowed-tools: Bash(git:*,codex *,cursor-agent *,mkdir *,ls *,wc *,test *,which *,sleep *,ps *), Read, Write, Grep, Glob, Task, EnterPlanMode
 ---
 
 # Auto Peer Review
 
-Fully automated code review that orchestrates three AI reviewers in parallel and consolidates their findings into an action plan.
+## HARD RULES — Read These First
 
-## Automation Rules (CRITICAL)
+You MUST follow every rule below. Do NOT improvise, do NOT fall back to "common" review patterns.
 
-To maximize automation and minimize user confirmations:
+### Rule 1: NEVER put review content in main chat
+ALL review content (prompts, reviews, action plans) goes to FILES on disk. The main chat only ever sees short 1-3 line summaries. This is the entire point of this command — if you dump content into chat, you've defeated the purpose.
 
-1. **MUST use `/prepare-peer-review` skill** - Don't manually generate prompts
-2. **MUST use `/review` checklist** - Include exact criteria in Task agent prompt
-3. **MUST combine Bash commands** - Single command for Codex + Cursor + wait loop
-4. **Launch Task agent in parallel** - Same tool call batch as Bash command
+### Rule 2: NEVER use the Skill tool
+The Skill tool is NOT in allowed-tools. Do NOT try to invoke `/prepare-peer-review` or `/review` as skills. Use Task agents that follow the same logic and write to files.
 
-**Expected confirmations:** 1 (for the combined Bash command)
+### Rule 3: NEVER use /tmp/ — use docs/code-reviews/
+Reviews are PERSISTENT records saved inside the repo. The directory is `{REPO_ROOT}/docs/code-reviews/{SESSION}/`. Never use `/tmp/` or any temporary directory.
 
-## Context Management
+### Rule 4: NEVER use shell variables across Bash calls
+Each Bash tool call is a fresh shell. `$REVIEW_DIR` from one call does NOT exist in the next. Always use the full literal path string in every Bash call.
 
-| Step | Context | Why |
-|------|---------|-----|
-| 1. Generate prompt | Skill -> `/prepare-peer-review` | Reuse existing skill |
-| 2. Codex review | External CLI | Separate process |
-| 3. Cursor review | External CLI | Separate process |
-| 4. Claude's /review | Task agent (forked) | Heavy file reading |
-| 5. Consolidation | **Main context** | Team lead decisions should be visible |
-| 6. Final output | **Main context** | Action plan |
+### Rule 5: Use EXACT CLI syntax specified below
+Do NOT guess Codex or Cursor CLI flags. The exact commands are provided — copy them, substituting only the path.
 
-## Workflow Overview
+### Rule 6: All review files use .md extension
+`codex-review.md`, `cursor-review.md`, `claude-review.md` — NEVER `.txt`.
 
-```text
-1. Generate prompt (prepare-peer-review logic)
-           |
-           v
-2. Run 3 reviews IN PARALLEL:
-   +-----------+  +-----------+  +-----------+
-   |   Codex   |  |   Cursor  |  |   Claude  |
-   | GPT-5.2   |  | Composer-1|  |  /review  |
-   +-----------+  +-----------+  +-----------+
-          |              |              |
-3. Wait for all to complete
-          |              |              |
-          +------+-------+------+------+
-                 |
-                 v
-4. Consolidate with peer-review logic
-   - Compare all 3 analyses
-   - Identify consensus (2+ agree)
-   - Verify findings against code
-   - Decide: do / don't do
-                 |
-                 v
-5. Output: Final Action Plan
+---
+
+## Overview
+
+Orchestrates three AI reviewers in parallel, saves results to persistent files, consolidates into an action plan, and enters plan mode.
+
+```
+docs/code-reviews/{session}/
+  prompt.md          ← Review prompt (input for all 3 reviewers)
+  codex-review.md    ← Codex output
+  cursor-review.md   ← Cursor output
+  claude-review.md   ← Claude output
+  action-plan.md     ← Consolidated action plan
 ```
 
-## Step 1: Check Prerequisites
+---
 
-Verify CLIs are available:
+## Step 1: Setup
+
+### 1A: Determine repo root and session name
+
+First, get the repo root (works in both main repo and worktrees):
 
 ```bash
-which codex cursor-agent
+git rev-parse --show-toplevel
 ```
 
-If missing:
-- Codex: User needs OpenAI Codex CLI installed
-- Cursor: `curl https://cursor.com/install -fsS | bash`
+Store this as `REPO_ROOT` (a literal string you remember, NOT a shell variable).
+
+For the session name:
+- If user provided an argument (e.g. `/auto-peer-review agent-scheduler`), use it.
+- If no argument, auto-generate: run `git rev-parse --abbrev-ref HEAD`, then append today's date. Example: `phase-3-wave-1_2026-02-18`. Sanitize: replace `/` with `-`.
+
+You now have two literal strings to use in ALL subsequent steps:
+- `REPO_ROOT` — e.g. `/Users/oleksiihrankin/Downloads/AI Startup/worktrees/phase3-wave1-s6`
+- `REVIEW_DIR` — e.g. `/Users/oleksiihrankin/Downloads/AI Startup/worktrees/phase3-wave1-s6/docs/code-reviews/agent-scheduler`
+
+### 1B: Create directory and check for changes
+
+Run in ONE Bash call:
+
+```bash
+mkdir -p "{REVIEW_DIR}" && git -C "{REPO_ROOT}" diff --stat HEAD && git -C "{REPO_ROOT}" diff --cached --stat
+```
+
+If both diffs are empty, stop: "No uncommitted changes found."
+
+### 1C: Check which reviewers are available
+
+```bash
+which codex 2>/dev/null && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_FOUND"; which cursor-agent 2>/dev/null && echo "CURSOR_AVAILABLE" || echo "CURSOR_NOT_FOUND"
+```
+
+Tell the user which reviewers were found. Claude is always available.
+
+---
 
 ## Step 2: Generate Review Prompt
 
-**CRITICAL: You MUST use the Skill tool here - do NOT manually implement this logic.**
+**Use a Task agent** to generate the prompt and write it to a file.
 
-Invoke the `/prepare-peer-review` skill using the Skill tool:
+⚠️ Do NOT generate the prompt yourself. Do NOT output prompt content to chat. The Task agent writes to file and returns a 1-line summary.
 
-```yaml
-# Use Skill tool with:
-skill: "prepare-peer-review"
-args: "[files if specified]"
+Launch this Task agent call:
+- **subagent_type:** `general-purpose`
+- **mode:** `bypassPermissions`
+- **description:** `Generate review prompt`
+- **prompt:** (substitute your actual REPO_ROOT and REVIEW_DIR paths below)
+
+```
+Generate a code review prompt and write it to a file.
+
+INSTRUCTIONS:
+1. Run: git -C "{REPO_ROOT}" diff HEAD
+   If empty, also try: git -C "{REPO_ROOT}" diff --cached
+2. Parse the diff to identify which files changed
+3. Read each changed file IN FULL using the Read tool
+4. Generate a review prompt in markdown with these sections:
+   - "# Code Review Request" header
+   - "## READ-ONLY REVIEW" warning (reviewer must NOT edit files or implement fixes)
+   - "## Project Context" — AI Company-in-a-Box, TypeScript CLI, Claude Agent SDK, SQLite
+   - "## Problem Statement" — what was being solved (infer from code changes and commit messages)
+   - "## What Was Implemented" — 2-3 sentence summary
+   - "## Code to Review" — for each changed file: filename, what changed, extracted code (full functions, not just diff lines, max 200 lines per file)
+   - "## Focus Areas" — based on what changed (security, performance, types, error handling, etc.)
+   - "## Review Criteria" — Part 1: Code quality checks. Part 2: Implementation approach critique.
+   - "## Output Format" — ask for: overall assessment, issues with severity/location/fix, implementation critique, suggestions
+5. Write the complete prompt to this EXACT path using the Write tool:
+   {REVIEW_DIR}/prompt.md
+6. Return ONLY this text (nothing else): "Prompt generated: X files, ~Y lines of code reviewed"
 ```
 
-The skill will:
-- Read files or git diff
-- Generate a complete review prompt
-- Output the prompt (copy this for external CLIs)
+Wait for this Task agent to complete before proceeding to Step 3.
 
-**After the skill outputs the prompt**, save it to a temp file for external reviewers.
+---
 
-### Important: Save the Output
+## Step 3: Launch All 3 Reviews in Parallel
 
-First create the review directory, then save the prompt:
+⚠️ Step 2 must be COMPLETE (prompt.md must exist) before starting this step.
+
+Launch these in the SAME tool call batch so they run in parallel:
+
+### 3A: External reviewers — single background Bash command
+
+⚠️ Use the EXACT commands below. Do NOT change model names, flags, or flag order.
+
+**If BOTH Codex and Cursor are available:**
 
 ```bash
-REVIEW_DIR="/tmp/auto-peer-review-$(date +%s)"
-mkdir -p "$REVIEW_DIR"
+codex exec -o "{REVIEW_DIR}/codex-review.md" review --uncommitted -m gpt-5.3-codex-high --ephemeral & CODEX_PID=$! ; cat "{REVIEW_DIR}/prompt.md" | cursor-agent -p --mode plan --trust --force --model composer-1.5 --workspace "{REPO_ROOT}" > "{REVIEW_DIR}/cursor-review.md" 2>&1 & CURSOR_PID=$! ; echo "Codex PID:$CODEX_PID Cursor PID:$CURSOR_PID" ; TIMEOUT=600; ELAPSED=0; while [ $ELAPSED -lt $TIMEOUT ]; do C1=0; C2=0; ps -p $CODEX_PID >/dev/null 2>&1 || C1=1; ps -p $CURSOR_PID >/dev/null 2>&1 || C2=1; [ $C1 -eq 1 ] && [ $C2 -eq 1 ] && break; sleep 10; ELAPSED=$((ELAPSED+10)); echo "${ELAPSED}s..."; done ; echo "=== Done ===" ; [ -s "{REVIEW_DIR}/codex-review.md" ] && echo "Codex: $(wc -l < "{REVIEW_DIR}/codex-review.md") lines" || echo "Codex: empty/failed" ; [ -s "{REVIEW_DIR}/cursor-review.md" ] && echo "Cursor: $(wc -l < "{REVIEW_DIR}/cursor-review.md") lines" || echo "Cursor: empty/failed"
 ```
 
-Then use the Write tool to save the generated prompt to `$REVIEW_DIR/prompt.md`.
+**If only Codex available:**
+```bash
+codex exec -o "{REVIEW_DIR}/codex-review.md" review --uncommitted -m gpt-5.3-codex-high --ephemeral ; echo "=== Done ===" ; [ -s "{REVIEW_DIR}/codex-review.md" ] && echo "Codex: $(wc -l < "{REVIEW_DIR}/codex-review.md") lines" || echo "Codex: empty/failed"
+```
 
-## Step 3: Launch All Reviews in Parallel
+**If only Cursor available:**
+```bash
+cat "{REVIEW_DIR}/prompt.md" | cursor-agent -p --mode plan --trust --force --model composer-1.5 --workspace "{REPO_ROOT}" > "{REVIEW_DIR}/cursor-review.md" 2>&1 ; echo "=== Done ===" ; [ -s "{REVIEW_DIR}/cursor-review.md" ] && echo "Cursor: $(wc -l < "{REVIEW_DIR}/cursor-review.md") lines" || echo "Cursor: empty/failed"
+```
 
-**CRITICAL: Use a SINGLE Bash command to launch all external reviews.**
+**If neither available:** Skip 3A entirely.
 
-### 3A+3B: Launch Codex and Cursor Together (ONE Bash call)
+### 3B: Claude review — Task agent with Opus 4.6
+
+Launch in the SAME tool call as 3A above.
+
+- **subagent_type:** `general-purpose`
+- **model:** `opus`
+- **mode:** `bypassPermissions`
+- **description:** `Claude code review`
+- **prompt:** (substitute your actual REVIEW_DIR path)
+
+```
+You are one of three independent code reviewers. Perform a thorough code review.
+
+INSTRUCTIONS:
+1. Read the review prompt at: {REVIEW_DIR}/prompt.md
+   This contains the code to review, project context, and focus areas.
+2. Follow ALL review criteria in the prompt.
+3. Additionally check for these specific items:
+   - No console.log (use proper logger)
+   - Try-catch for async operations, no silent failures
+   - No `any` types in TypeScript, proper interfaces, strict null checks
+   - No debug statements, TODOs, hardcoded secrets or URLs
+   - Expensive operations memoized, no unnecessary work
+   - Auth checked before operations, inputs validated, parameterized SQL
+   - Follows existing codebase patterns and conventions
+4. IMPORTANT: You have full repo access. If you need to check how a function is used elsewhere, or verify that error handling exists upstream, READ the actual source files. This is your advantage over the other reviewers.
+5. Write your COMPLETE review to this EXACT path using the Write tool:
+   {REVIEW_DIR}/claude-review.md
+   Include: overall assessment, issues with severity (CRITICAL/HIGH/MEDIUM/LOW) and file:line, suggested fixes, what looks good, summary stats.
+6. Return ONLY this text (nothing else): "Claude review complete: X issues found (Y critical, Z high)"
+```
+
+---
+
+## Step 4: Verify All Review Files
+
+After BOTH parallel operations from Step 3 complete, check what we have:
 
 ```bash
-cd "$(pwd)" && \
-codex exec -m "gpt-5.2-codex" -c 'model_reasoning_effort="high"' \
-  --dangerously-bypass-approvals-and-sandbox \
-  -C "$(pwd)" < "$REVIEW_DIR/prompt.md" > "$REVIEW_DIR/codex-review.txt" 2>&1 & \
-CODEX_PID=$! && \
-cursor-agent -p --model "composer-1" --workspace "$(pwd)" \
-  < "$REVIEW_DIR/prompt.md" > "$REVIEW_DIR/cursor-review.txt" 2>&1 & \
-CURSOR_PID=$! && \
-echo "Codex (PID: $CODEX_PID) and Cursor (PID: $CURSOR_PID) reviews launched" && \
-echo "Waiting for external reviews (max 5 min)..." && \
-TIMEOUT=300; ELAPSED=0; \
-while [ $ELAPSED -lt $TIMEOUT ]; do \
-  CODEX_DONE=0; CURSOR_DONE=0; \
-  ps -p $CODEX_PID > /dev/null 2>&1 || CODEX_DONE=1; \
-  ps -p $CURSOR_PID > /dev/null 2>&1 || CURSOR_DONE=1; \
-  [ $CODEX_DONE -eq 1 ] && [ $CURSOR_DONE -eq 1 ] && break; \
-  sleep 5; ELAPSED=$((ELAPSED + 5)); \
-done && \
-echo "=== Review Status ===" && \
-[ -s "$REVIEW_DIR/codex-review.txt" ] && echo "Codex: $(wc -l < $REVIEW_DIR/codex-review.txt) lines" || echo "Codex: empty/failed" && \
-[ -s "$REVIEW_DIR/cursor-review.txt" ] && echo "Cursor: $(wc -l < $REVIEW_DIR/cursor-review.txt) lines" || echo "Cursor: empty/failed"
+echo "=== Review Files ===" ; for f in prompt.md codex-review.md cursor-review.md claude-review.md; do if [ -s "{REVIEW_DIR}/$f" ]; then echo "OK $f: $(wc -l < "{REVIEW_DIR}/$f") lines"; else echo "MISSING $f"; fi; done
 ```
 
-### 3C: Run Claude's /review (Task Agent - runs in parallel)
+**Minimum requirement:** `claude-review.md` must exist. If it doesn't, stop and report error.
 
-**Use a Task agent** to run Claude's review following the exact `/review` checklist.
-
-**Launch the Task agent at the same time as the Bash command** - they run in parallel.
-
-## Step 4: Read All Review Outputs
-
-Once all reviews complete, read each review file:
-- `$REVIEW_DIR/codex-review.txt`
-- `$REVIEW_DIR/cursor-review.txt`
-- `$REVIEW_DIR/claude-review.txt`
-
-## Step 5: Consolidate with Peer Review Logic (MAIN CONTEXT)
-
-**Run consolidation in main context** so team lead decisions are visible.
-
-### 5A: Extract Findings from Each Review
-
-Parse each review to identify:
-- Issues with severity levels
-- File and line references
-- Suggested fixes
-- Overall assessment
-
-### 5B: Identify Consensus
-
-For each unique finding, check which reviewers flagged it:
-- **High Confidence**: 2+ reviewers agree
-- **Single Reviewer**: Only one reviewer flagged it
-
-### 5C: Verify Each Finding
-
-For EACH finding:
-
-1. **Read the actual code** to verify the issue exists
-2. **Check if already handled** (might be addressed elsewhere)
-3. **Assess real severity** based on project context
-
-Categorize as:
-- **Valid** - Issue confirmed, should fix
-- **Invalid** - Misconception, external reviewer lacked context
-- **Suggestion** - Optional improvement, not a bug
-
-### 5D: Make Decisions
-
-For each valid finding, decide:
-- **Fix Now** - Critical/High issues, fix before commit
-- **Fix Soon** - Medium issues, fix this session
-- **Track Later** - Low priority, create Linear issue
-- **Won't Fix** - Valid point but not worth the trade-off
-
-## Step 6: Output Final Action Plan
-
-```markdown
-## Auto Peer Review - Action Plan
-
-**Reviewers:**
-- Codex (GPT-5.2 Codex, High Reasoning)
-- Cursor (Composer 1)
-- Claude (/review - Full Context)
-
-**Consensus Rule:** 2+ reviewers agree = high confidence
+Missing external reviews are OK — proceed with what's available.
 
 ---
 
-## Will Fix (Validated Issues)
+## Step 5: Consolidate Reviews
 
-| Issue | Codex | Cursor | Claude | Priority |
-|-------|-------|--------|--------|----------|
-| [description] | Y/N | Y/N | Y/N | HIGH/MED/LOW |
+**Use a NEW Task agent** to read all review files and produce the action plan.
 
-### Fix Details
+⚠️ Do NOT read the review files yourself. Do NOT consolidate in main context. The Task agent does ALL the work and writes the action plan to a file.
 
-**1. [PRIORITY] File:line - Issue**
-- Flagged by: [list reviewers]
-- Verified: [Yes/No - explanation]
-- Fix: [What to do]
+- **subagent_type:** `general-purpose`
+- **model:** `opus`
+- **mode:** `bypassPermissions`
+- **description:** `Consolidate reviews into action plan`
+- **prompt:** (substitute your actual REVIEW_DIR and SESSION name)
 
----
+```
+Consolidate multiple AI code reviews into a single action plan.
 
-## Won't Fix
+INSTRUCTIONS:
+1. Read ALL of these files using the Read tool:
+   - {REVIEW_DIR}/prompt.md (the original review prompt — tells you what was reviewed)
+   - {REVIEW_DIR}/claude-review.md (always present)
+   - {REVIEW_DIR}/codex-review.md (may not exist — skip if Read fails)
+   - {REVIEW_DIR}/cursor-review.md (may not exist — skip if Read fails)
 
-| Issue | Source | Reason |
-|-------|--------|--------|
-| [description] | [reviewer] | [why skipping] |
+2. For each review that exists, extract: issues, severity, file/line references, suggestions.
 
----
+3. DEDUPLICATE: Group similar findings across reviewers.
 
-## Summary
+4. CONSENSUS: For each unique finding, note which reviewers flagged it:
+   - 2+ reviewers agree = HIGH CONFIDENCE
+   - 1 reviewer only = VERIFY CAREFULLY
 
-- Total findings across all reviewers: X
-- Unique issues after deduplication: Y
-- **Will fix:** Z (validated)
-- **Won't fix:** W (invalid or low-value)
-- High-confidence items (2+ agree): N
+5. VERIFY: For each finding, read the ACTUAL SOURCE CODE (not just the review). Confirm:
+   - Does the issue actually exist in the code?
+   - Is it already handled elsewhere?
+   - What's the real severity?
 
----
+6. CATEGORIZE:
+   - Valid → Fix Now (critical/high) / Fix Soon (medium) / Track Later (low)
+   - Invalid → Won't Fix (explain why)
+   - Suggestion → Accept or Decline (with rationale)
 
-## Assessment
+7. Write the action plan to this EXACT path using the Write tool:
+   {REVIEW_DIR}/action-plan.md
 
-[Your overall take on the code quality and the reviews]
+   Use this format:
+
+   ## Auto Peer Review — Action Plan
+   **Session:** {SESSION}
+   **Date:** [today's date]
+   **Reviewers:** [list which participated, note any missing]
+   **Consensus Rule:** 2+ reviewers agree = high confidence
+
+   ### Will Fix (Validated Issues)
+
+   | # | Issue | Codex | Cursor | Claude | Severity | Priority |
+   |---|-------|-------|--------|--------|----------|----------|
+   (use Y/N/— for each reviewer)
+
+   #### Fix Details
+   **1. [SEVERITY] `file:line` — Issue title**
+   - Flagged by: [reviewers]
+   - Confidence: High (2+ agree) / Single reviewer
+   - Verified: Yes — [how you confirmed against actual code]
+   - Fix: [specific action]
+
+   ### Won't Fix
+   | # | Issue | Source | Reason |
+
+   ### Summary
+   - Total findings across all reviewers: X
+   - Unique after dedup: Y
+   - Will fix: Z | Won't fix: W
+   - High-confidence (2+ agree): N
+
+   ### Overall Assessment
+   [1-2 paragraphs on code quality, key risks, next steps]
+
+8. Return ONLY this text (nothing else):
+   "Action plan: X to fix (Y critical, Z high), W won't fix. Key concern: [1 sentence]"
 ```
 
-## Step 7: Cleanup
+---
 
-```bash
-rm -rf "$REVIEW_DIR"
+## Step 6: Present Results
+
+Read the action plan file:
+```
+Read: {REVIEW_DIR}/action-plan.md
 ```
 
-## Configuration Options
+Show the user a SHORT summary, then the action plan content:
 
-### Focus area (optional)
+```
+## Auto Peer Review Complete
 
-`/auto-peer-review security` - Emphasize security in the prompt
-`/auto-peer-review performance` - Emphasize performance review
+**Session:** {SESSION}
+**Saved to:** docs/code-reviews/{SESSION}/
 
-### Single reviewer fallback
+[X] to fix ([Y] critical, [Z] high) · [W] won't fix · [N] high-confidence
 
-If a CLI is unavailable, continue with available reviewers and note which is missing.
+Files: prompt.md · codex-review.md [or skipped] · cursor-review.md [or skipped] · claude-review.md · action-plan.md
+```
+
+Then output the full `action-plan.md` content.
+
+---
+
+## Step 7: Enter Plan Mode
+
+Call the `EnterPlanMode` tool. The action plan becomes the fix-it plan:
+1. List each "Will Fix" item as a numbered step with file path and specific change
+2. `ExitPlanMode` when ready for user approval
+3. After approval, execute the fixes
+
+---
 
 ## Error Handling
 
-### No changes to review
-If `git diff` returns empty:
-> "No uncommitted changes found. Stage your changes or make modifications before running auto-peer-review."
-
-### CLI not found
-If codex or cursor-agent not in PATH:
-> "[tool] not found. Install with: [instructions]. Continuing with available reviewers..."
-
-### Review timeout
-If a reviewer exceeds 5 minutes:
-> "[reviewer] timed out. Proceeding with available results."
-
-### Empty review output
-If a reviewer returns empty output:
-> "[reviewer] returned no output. Check CLI authentication and try again."
-
-## Notes
-
-- Claude's /review has an advantage: full codebase context (not just the prompt)
-- External reviewers see only the code extract, may miss context
-- Consensus (2+ agree) is a strong signal but still verify against code
-- The final plan is YOUR decision as team lead - don't blindly accept findings
+- **No changes:** "No uncommitted changes found."
+- **CLI not found:** Skip that reviewer, continue with others, note in action plan.
+- **Timeout (10 min):** Proceed with whatever output exists.
+- **Empty output:** Note as "failed" in action plan, proceed with available reviews.
+- **Claude review failed:** Stop and report — minimum 1 reviewer required.

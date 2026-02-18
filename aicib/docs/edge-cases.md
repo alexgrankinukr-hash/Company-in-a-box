@@ -1012,3 +1012,47 @@ Track edge cases discovered during implementation.
 **Scenario:** Database exists but `tasks` table hasn't been created yet (happens if `aicib start` was run before task management was added, or on very old DB versions).
 **Handling:** `/api/status` and `/api/stream` wrap task queries in try/catch. Return zero counts on error.
 **User sees:** Active Tasks KPI shows 0. No error visible.
+
+## Agent Scheduler (Phase 3 Wave 1 Session 4)
+
+### Scheduler — Invalid Cron on Non-Interactive Create
+
+**Scenario:** Agent marker `SCHEDULE::CREATE name="Test" cron="not-valid" directive="..."` or programmatic `createSchedule()` with an invalid cron expression.
+**Handling:** `createSchedule()` validates the cron expression with `parseExpression()` before inserting. Throws with a clear error message including the invalid expression and parser error.
+**User sees:** Error: `Invalid cron expression "not-valid": ...`. Schedule is not created.
+
+### Scheduler — Trigger Dedupe Key Collision
+
+**Scenario:** Agent output contains both a `task_completed` trigger for task #5 and a `project_completed` trigger in the same message batch.
+**Handling:** Dedupe key for trigger actions uses `trigger:${triggerType}:${triggerValue}` instead of `undefined:trigger`. Different trigger types/values are preserved as separate actions.
+**User sees:** Nothing — both triggers fire correctly instead of only one surviving deduplication.
+
+### Scheduler — Running Schedule Stuck During Quiet Hours
+
+**Scenario:** A scheduled job is running when quiet hours begin. The daemon's early-return guard would previously skip `checkCompletedSchedules()`, leaving the schedule stuck as "running" indefinitely.
+**Handling:** `checkCompletedSchedules()` runs before quiet-hours/cost/session guards. Running jobs get their completion status updated regardless.
+**User sees:** Schedule correctly transitions to idle/error after its background job finishes, even during quiet hours.
+
+### Scheduler — Cost Limit Per Run Exceeded (Pre-Execution)
+
+**Scenario:** A schedule's historical average cost per run exceeds `cost_limit_per_run`. Without enforcement, it would keep running and exceeding the budget.
+**Handling:** Before spawning, daemon checks `total_cost_usd / run_count > cost_limit_per_run`. If exceeded, schedule is marked as error with a message showing the average cost vs the limit.
+**User sees:** Schedule status shows "error" with message like `Average cost per run ($6.50) exceeds cost_limit_per_run ($5.00)`.
+
+### Scheduler — Cost Limit Per Run Exceeded (Post-Execution)
+
+**Scenario:** A single execution finishes and its cost exceeds `cost_limit_per_run`.
+**Handling:** After job completion in `checkCompletedSchedules()`, daemon checks if `job.total_cost_usd > cost_limit_per_run`. If exceeded, schedule is put in error state instead of returning to idle.
+**User sees:** Schedule shows "error" with message like `Last execution cost ($7.20) exceeded cost_limit_per_run ($5.00)`.
+
+### Scheduler — Missed Run Policy Skip
+
+**Scenario:** Daemon was stopped for hours and restarts. Multiple schedules have `next_run_at` far in the past. With `missed_run_policy: "skip"`, they shouldn't all fire at once.
+**Handling:** If `next_run_at` is overdue by more than `poll_interval_seconds * 2`, daemon recomputes `next_run_at` to the next future occurrence and records a "skipped" execution.
+**User sees:** Skipped schedules show in execution history as "skipped". Next run is set to the proper future time.
+
+### Scheduler — Dynamic SQL Column Whitelist
+
+**Scenario:** `updateSchedule()` or `updateExecution()` receives an object with unexpected keys (e.g., from a future code path or unexpected caller).
+**Handling:** Both methods check each key against `ALLOWED_SCHEDULE_COLUMNS` / `ALLOWED_EXECUTION_COLUMNS` sets. Unknown keys are silently skipped (matches `task-manager.ts` pattern).
+**User sees:** Nothing — only valid columns are updated.

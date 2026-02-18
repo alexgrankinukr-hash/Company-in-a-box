@@ -23,6 +23,7 @@ import "./project-register.js";
 import "./routing-register.js";
 import "./review-chains-register.js";
 import "./safeguards-register.js";
+import "./scheduler-register.js";
 
 import { loadConfig } from "./config.js";
 import type { AicibConfig } from "./config.js";
