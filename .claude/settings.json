@@ -85,7 +85,11 @@
       "Bash(grep:*)",
       "Bash(sort:*)",
       "Bash(aicib:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(codex:*)",
+      "Bash(cursor-agent:*)",
+      "Bash(sleep:*)",
+      "Bash(ps:*)"
     ]
   }
 }
