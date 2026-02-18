@@ -440,81 +440,89 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 | Wave | Sessions | What gets built | Status |
 |------|----------|----------------|--------|
 | **A: Foundation** | 1 session | Next.js 16 + Turbopack, layout shell, `aicib ui` command, home dashboard with KPI cards, SSE live updates | **COMPLETE** |
-| **A.5: Setup Wizard** | 1 session | First-run setup wizard: create company, configure team, set budget, launch — all from the browser | Planned |
+| **A.5: Setup Wizard** | 1 session | First-run setup wizard: create company, configure team, set budget, launch — all from the browser | **COMPLETE** |
 | **B: Core Dashboards** | 3 parallel sessions | Cost charts + budget gauges, Task Kanban board, Activity feed + Journal timeline + Brief input | Planned |
-| **C: Management Views** | 3 parallel sessions | HR profiles + review scorecards, Knowledge wiki + decision log, Interactive org chart + agent profiles | Planned |
-| **D: Config + Polish** | 2 parallel sessions | Settings panel (replaces YAML editing), Project pipeline view, UI polish + mobile + Cmd+K | Planned |
+| **C: Agent Persona Studio + Management** | 4 parallel sessions | **#35 Agent Persona Studio** (agent naming, role-specific presets, background/experience config, personality trait sliders, soul.md editor in browser), Knowledge wiki + decision log, Interactive org chart, HR profiles + agent profile pages | Planned |
+| **D: Config + Templates + Polish** | 3 parallel sessions | Settings panel (autonomy matrix editor, #37 communication routing rules, notification prefs), #20 Template expansion (2-3 industry templates + structure×industry two-layer system), Project pipeline view, Enhanced setup wizard (add persona/background/communication/autonomy steps), UI polish + mobile + Cmd+K | Planned |
 
-**Total:** 10 sessions, ~3-4 weeks. After this phase, every feature from Phases 1-2 has a visual interface.
+**Total:** 12 sessions, ~4-5 weeks. After this phase, every feature from Phases 1-2 has a visual interface, users can fully customize their agents, and the setup wizard covers all 9 steps from the vision document.
 
-**Impact on later phases:** Phase 3 features now include UI from day one (each session creates `app/<feature>/page.tsx` alongside the backend). Phase 4's Web UI feature (#16) is effectively done — Phase 4 shrinks significantly.
+**Impact on later phases:** Phase 3 features now include UI from day one (each session creates `app/<feature>/page.tsx` alongside the backend). Phase 4's Web UI feature (#16) is effectively done — Phase 4 shrinks significantly. Agent Persona Studio and Template expansion are pulled forward here because they are core to the product promise ("customize your AI team").
 
 ---
 
-## Phase 3: Advanced Systems (Weeks 12-14)
+## Phase 3: Real Company Behavior (Weeks 13-16)
 
-**Goal:** The differentiating features that make us unique — Board of Directors, connecting to real tools via MCP, company events, reports, and safety controls for external actions.
+**Goal:** Make the AI company act like a real company — agents connect to real tools, scheduled events happen automatically, reports generate on their own, and safety guardrails protect external actions. This is where we pull ahead of every competitor.
 
-> **Why Phase 3 matters:** This is where we pull ahead of competitors. No other product has a Board of Directors feature, company-wide events, or the depth of organizational simulation we're building. Slack integration was already added in Phase 2 — this phase expands the MCP framework to connect agents to many more real-world tools (GitHub, email, calendars, etc.).
+> **Why Phase 3 matters:** Until now, agents produce files and talk to each other. In Phase 3, they start *doing real things* — sending emails via Gmail, creating issues in GitHub, posting to social media. They also start operating on schedules (daily standups, weekly reports) instead of only responding when you tell them to. And when agents interact with the outside world, configurable safety rules prevent them from doing anything you haven't approved.
 
-**Success metric:** The system behaves like a real company — board meetings with advisors, department reports, agents using real tools (sending Slack messages, creating GitHub issues), and safety guardrails on external actions.
+> **What moved:** Board of Directors was originally Phase 3 but has been moved to Phase 4. It's a cool differentiator but less impactful than MCP integrations, scheduled automation, and safety controls. Getting agents connected to real tools and running on schedules matters more than an advisory board. Template System (#20) was also originally here but the core template work (structure×industry two-layer system, 2-3 industry templates) has been pulled forward to Phase 2.5 Wave D. Phase 3 retains the community sharing/marketplace aspect.
+
+> **What's new:** Four features were identified in a gap analysis against the Company Vision & Requirements document. These are features described in the vision that were missing from the roadmap: Agent Scheduler (#36), Trust Evolution (#38), Review Chain Configuration (#39), and Communication Routing Rules (#37, pulled into Phase 2.5 Wave D for the UI, backend logic ships here).
+
+**Success metric:** Agents use real external tools (GitHub, email, calendars), scheduled events run without human prompting (daily standups, weekly reports), safety rules block unauthorized external actions, and the founder gets automated briefings on a configurable schedule.
 
 ### Features
 
+> **Priority ordering:** Features are listed in order of impact. The most important features — the ones that make the product dramatically more useful — come first. Features at the bottom are valuable but less transformative.
+
 | # | Feature | What it does | Complexity |
 |---|---------|-------------|-----------|
-| 8 | Board of Directors | An advisory panel of expert AI agents who review big decisions. Three modes: reactive (you ask them), proactive (they watch and chime in), and voting (they vote on proposals). Like a real board of directors. | Large (1.5 weeks) |
-| 11 | Notification System | Alerts delivered to you based on urgency. Critical issues interrupt you immediately; routine updates get batched into daily digests. Configurable quiet hours, per-department preferences. | Medium (1 week) |
-| 12 | Reporting Suite | Automated reports: CEO daily briefings, department performance summaries, financial burn-rate reports, KPI dashboards. The system writes its own status reports like a real company does. | Large (1.5 weeks) |
-| 13 | Company Events | Simulated meetings: daily standups, weekly department syncs, monthly all-hands, quarterly strategy reviews. Agents attend, discuss, and produce meeting minutes with action items. | Medium (1 week) |
-| 14 | External Actions & Safeguards | Rules for what agents can do outside the system. Category-based approval: social media posts need CMO approval, code deployments need CTO approval, spending over $X needs founder approval. Trust levels increase over time as agents prove reliable. | Medium (1 week) |
-| 15 | MCP Integration Framework | The "plug-in" system that connects agents to real tools. Uses Composio (a service providing 300+ pre-built connections) so the CMO can post to social media, the CTO can manage GitHub, the CFO can track expenses in QuickBooks, etc. **Note:** Slack was already connected in Phase 2 as the first integration. This phase builds the general framework and adds many more tools. | Large (1.5 weeks) |
-| 20 | Template System | A way to package and share company configurations. Users or community members can create templates for different business types (e-commerce, agency, consulting) and share them. | Medium (1 week) |
-| 23 | Data Export/Import | Ability to back up your entire company (all agent configs, knowledge, history) and restore it elsewhere. Also allows publishing anonymized templates to the community marketplace. | Medium (1 week) |
+| 36 | Agent Scheduler / Cron System | **NEW.** The engine that makes agents run on schedules. Without this, the CEO can't send you a morning briefing automatically, departments can't have daily standups, and reports can't generate themselves. This is the foundation for "runs while you sleep." Configurable per agent: every morning at 9am, every Monday, every 4 hours, etc. Also enables trigger-based activation — agents wake up in response to events (webhook, new task, external notification). Think of it like setting alarms for your employees — they show up and do their job at the scheduled time without you having to ping them. | Large (1.5 weeks) |
+| 15 | MCP Integration Framework | The "plug-in" system that connects agents to real tools. Uses Composio (a service providing 300+ pre-built connections) so the CMO can post to social media, the CTO can manage GitHub, the CFO can track expenses in QuickBooks, the Sales team can update CRM, etc. **Note:** Slack was already connected in Phase 2 as the first integration. This phase builds the general framework for any tool and adds many more. Includes per-agent capability configuration — which agents can use which tools, matching the vision's tiered capability system (web search for all, code execution for engineering, browser automation opt-in, etc.). | Large (1.5 weeks) |
+| 14 | External Actions & Safeguards | Rules for what agents can do outside the system. Category-based approval: social media posts need CMO review then auto-publish, code deployments need CTO review then owner approval for production, customer emails need department head review, spending over $X needs founder approval. Each category has its own approval chain. Without this, connecting agents to real tools (MCP) would be dangerous — you'd have no control over what they do. This is the safety net that makes MCP integration safe to use. | Medium (1 week) |
+| 38 | Trust Evolution System | **NEW.** Agents earn more autonomy over time as they prove reliable. Week 1: all social media posts require owner approval. Month 2: CMO-approved posts can auto-publish. Month 6: social media manager can auto-publish routine posts (CMO notified). The system tracks each agent's external action history — how many actions, how many were approved vs. rejected, success rate — and recommends trust level changes to the owner. Like a real company where new employees start with more oversight and earn more independence as they prove themselves. Builds on the autonomy matrix from Phase 2. | Medium (1 week) |
+| 11 | Notification System | Alerts delivered to you based on urgency. Critical issues (system errors, budget exceeded, blocked deals) interrupt you immediately via push notification. High-priority items (decisions needing approval, CEO escalations) arrive within 15 minutes. Medium items (task completions, status updates) get batched into hourly/daily digests. Low-priority (routine agent activity) stays on the dashboard only. Configurable: quiet hours, per-department preferences, which urgency levels trigger push notifications. Delivery via Slack DM, email, or future Telegram. | Medium (1 week) |
+| 12 | Reporting Suite | Automated reports that generate on a schedule (requires #36 Agent Scheduler). CEO daily briefing every morning. Weekly department performance summaries. Monthly financial burn-rate reports from CFO. Sprint reviews from CTO. Marketing performance reports from CMO. Sales pipeline reports from CSO. Each report follows a template, is authored by the responsible agent, and delivered to the owner. Custom reports can be defined with specific metrics, frequency, and responsible agent. Dashboard shows real-time versions of report data. | Large (1.5 weeks) |
+| 13 | Company Events | Simulated corporate events that run on a schedule (requires #36 Agent Scheduler). Daily/weekly department standups where team members share progress and blockers. Monthly all-hands where the CEO briefs the entire company. Sprint planning where engineering + product define the next sprint. Quarterly business reviews with the full C-suite. 1-on-1s between managers and direct reports. Each event has: participants, agenda (auto-generated from current context), discussion format (async, structured rounds, free-form), output (meeting minutes, action items auto-converted to tasks), and follow-up tracking. | Medium (1 week) |
+| 39 | Review Chain Configuration | **NEW.** Configurable multi-layer quality control for agent deliverables. Different deliverable types get different review chains: internal documents = self-review only, code/technical work = self + peer review, marketing content for publishing = self + peer + department head + owner, strategic plans = department head + C-suite + CEO + owner. The owner customizes these rules: which layers apply to which deliverable types, and can change them at any time. Builds on the task reviewer field from Phase 2. | Small (0.5 weeks) |
 | 34 | Automated Performance Reviews | Managers automatically review their direct reports' completed work. When an engineer finishes a task, the CTO evaluates the deliverable and generates scores. The CEO periodically reviews department heads based on their team's output. Reviews follow the org chart: engineers reviewed by CTO, CTO reviewed by CEO, CEO reviewed by founder (manual). Integrates task completion events with the HR review system — no manual score entry needed for routine work. The founder only reviews the CEO; everything else cascades automatically. | Medium (1-1.5 weeks) |
+| 23 | Data Export/Import + Template Sharing | Ability to back up your entire company (all agent configs, soul.md files, knowledge, task history, decision logs) and restore it elsewhere. Selective export (only specific departments, only configurations, only knowledge). Anonymized export for publishing as community templates — strips proprietary information, keeps org structure, persona configs, skill assignments, and workflow automations. Import a full company package into a new instance, or merge specific components from one company into another. Also supports the community template marketplace from Phase 5. | Medium (1 week) |
 
 ### Parallel Sessions — Phase 3
 
-| Session | Workstream |
-|---------|-----------|
-| **S1** | Board of Directors — the advisory body, meeting mechanics, 3 operating modes, voting system |
-| **S2** | Notifications + Reporting — urgency levels, daily digests, CEO briefings, automated department reports |
-| **S3** | Events + Templates — simulated company meetings, standup formats, and the template packaging system for community sharing |
-| **S4** | MCP Integration Framework — the marketplace where agents browse available tools, request access, and connect to real services like Slack, GitHub, email via Composio |
-| **S5** | External safeguards + data portability — approval rules for external actions, trust level tracking, and full company export/import |
-| **S6** | Automated Performance Reviews — task-triggered manager reviews, org-chart-based review chains, auto-generated scores from deliverable evaluation |
+> **Wave structure:** Phase 3 uses two waves because several features depend on the Agent Scheduler (#36). Wave 1 builds the scheduler and the features that don't need it. Wave 2 builds the features that run on schedules.
+
+| When | Sessions | What's being built |
+|------|----------|-------------------|
+| **Wave 1** (Weeks 13-14) | 3 parallel sessions | **S1:** #36 Agent Scheduler + #39 Review Chain Configuration (scheduler is the foundation; review chains are small and touch different files). **S2:** #15 MCP Integration Framework (large, independent, touches integration files only). **S3:** #14 External Safeguards + #38 Trust Evolution (naturally paired — safeguards define the rules, trust evolution adjusts them over time). |
+| **Wave 2** (Weeks 15-16) | 3 parallel sessions | **S4:** #12 Reporting Suite + #34 Automated Performance Reviews (both generate scheduled content — reports and reviews). **S5:** #11 Notification System + #13 Company Events (notifications deliver event outputs; events generate notifications). **S6:** #23 Data Export/Import + Template Sharing (independent, touches new files only). |
 
 ---
 
-## Phase 4: Interfaces & Scale (Weeks 15-18)
+## Phase 4: Scale & Differentiation (Weeks 17-20)
 
-**Goal:** Web dashboard, Telegram integration, and production polish.
+**Goal:** The features that make the product robust for real-world use and differentiate it from everything else — Board of Directors (unique to us), Telegram as a second messaging platform, smart semantic search, proper security, audit trails, multi-user access, and internal communication channels for the Web UI chat interface.
 
-> **What changes:** You've been interacting with your AI company through the terminal and Slack (added in Phase 2). Phase 4 adds a proper web dashboard (a visual interface in your browser) with org charts, cost graphs, and a real-time activity feed. It also adds Telegram as another messaging option. This is where non-technical users can start using the product comfortably without any terminal at all.
+> **What changes:** By Phase 4, you have a fully functional AI company with scheduled events, real tool integrations, and safety controls. Phase 4 makes it *production-grade* — encrypted secrets, full audit trails, and multi-user access so you can share the dashboard with a co-founder. It also adds the Board of Directors, which is our most unique feature — no other product has an advisory panel of expert AI agents who critique and vote on decisions. The internal channel system gives the Web UI its own Slack-like chat interface, independent of external Slack.
 
-**Success metric:** Non-CLI users can interact with their AI company through a full web dashboard or messaging apps.
+> **What moved here:** Board of Directors (#8) was originally Phase 3 but moved here because MCP integrations, scheduled automation, and safety controls are more impactful to ship first. The Board is impressive but niche — most users will benefit more from agents that can actually send emails and create GitHub issues. ~~Web UI~~ was originally Phase 4 but was pulled forward to Phase 2.5 — the core dashboard is already built.
+
+**Success metric:** The system is secure, auditable, supports multiple human users, has a unique Board of Directors feature, and the Web UI has its own built-in chat interface.
 
 ### Features
 
 | # | Feature | What it does | Complexity |
 |---|---------|-------------|-----------|
-| 16 | Web UI / Dashboard | A website (running on your computer) that shows your AI company visually — org chart, chat channels, task boards, cost graphs, reports. Like a Slack-meets-Notion interface for your AI team. | XL (3-4 weeks) |
-| 17 | Telegram Bot | Talk to your AI company through Telegram. Send briefs, receive reports, approve decisions — all from your phone via a Telegram chat. | Medium (1 week) |
-| ~~18~~ | ~~Slack Bot~~ | **Moved to Phase 2.** Slack integration ships much earlier because it's the fastest and most natural way to interact with your AI company outside the terminal. | — |
-| 7+ | Knowledge Management (semantic search) | Upgrade the knowledge system to understand meaning, not just exact words. Uses Qdrant (a vector database) so when you search "marketing spend," it also finds docs about "advertising budget." | Large (1-1.5 weeks) |
-| 21 | Security & Vault | Encrypted storage for sensitive data (API keys, passwords, tokens). Role-based access so agents only see what they're authorized to see — like how not every employee has the company credit card. | Medium (1 week) |
-| 22+ | Audit Trail with AI summaries | A complete record of everything every agent ever did, with AI-generated daily/weekly/monthly summaries. Like having a secretary who takes notes on every meeting and action. | Medium (1 week) |
+| 8 | Board of Directors | **Moved from Phase 3.** An advisory panel of expert AI agents separate from the operational hierarchy. Each board member has a background profile (e.g., "Former CSO at Ford with 25 years in automotive sales"), an advising style (Harsh Critic, Supportive Mentor, Data-Driven Analyst, Creative Visionary, Risk Manager, Experienced Operator), and industry focus. Three progressive operating modes: **Stage 1 Reactive** (you ask them questions in #board-room, they respond independently then discuss each other's responses), **Stage 2 Proactive** (they gain read access to C-suite channels and chime in when they see something noteworthy), **Stage 3 Voting** (for specific decisions, board members vote with reasoning, results tallied as advisory or binding). Four meeting formats: async, structured rounds, free-form discussion, agenda-driven. Uses the same three-tier persona system as regular agents. | Large (1.5 weeks) |
+| 40 | Internal Communication Channel System | **NEW.** A built-in messaging system inside the product itself, independent of Slack. Default channels: #general, #announcements, #c-suite, #engineering, #marketing, #sales, #finance, #product, #hr, #operations, #board-room. Dynamic project channels (created per project, archived on completion). Direct messages between any agents. All messages stored in SQLite. This gives the Web UI chat interface something to display — a channel list sidebar, message thread view, and context panel. Without this, the Web UI's chat tab would be empty unless Slack is connected. Supports all 7 message types from the vision: standard, task assignment, escalation, decision request, status update, notification, report. | Large (1.5 weeks) |
+| 17 | Telegram Bot | Talk to your AI company through Telegram. Send briefs, receive reports, approve decisions — all from your phone via a Telegram chat. Maps company channels to Telegram groups. Bot commands: /status, /tasks, /brief, /ask, /approve, /budget, /report. Second messaging platform after Slack. | Medium (1 week) |
+| 41 | Multi-User Access Control | **NEW.** Support for multiple human users within one company, each with a defined role. Owner (full control), Admin (manage agents, can't change billing), Department Head (manage agents in their department, approve department-level decisions), Viewer (read-only dashboards and reports). Human users appear in the org chart alongside AI agents. The Web UI gets a simple login/session system (local accounts, no cloud auth yet — that's Phase 5). Needed before you can share the dashboard URL with a co-founder or team member. | Medium (1 week) |
+| 7+ | Knowledge Management (semantic search) | Upgrade the knowledge system to understand meaning, not just exact words. Uses Qdrant (a vector database — a special database that understands meaning, so searching "marketing spend" also finds docs about "advertising budget"). Replaces keyword-only search with AI-powered semantic search across all company knowledge — wiki, journals, decisions, archives. | Large (1-1.5 weeks) |
+| 21 | Security & Vault | Encrypted storage for sensitive data (API keys, passwords, tokens for MCP integrations, social media credentials, etc.). Role-based access: secrets are assigned to departments or specific roles by the owner. Agents only see secrets relevant to their role and current task. An agent requesting access to a secret they're not assigned generates an approval request. All secret access is logged in the audit trail. Currently Slack tokens are stored in plaintext SQLite — this feature fixes that. | Medium (1 week) |
+| 22+ | Audit Trail with AI summaries | A complete record of everything every agent ever did — every action, state change, external action, secret access, approval, escalation, budget event, and config change. Timestamps, agent identification, action context, and results. Append-only (entries cannot be modified or deleted). On top of the raw audit trail: AI-generated daily digests, weekly summaries, and monthly reports. Search and drill-down from any summary to the detailed log entries behind it. Exportable in JSON/CSV for compliance. | Medium (1 week) |
 | 32 | Agent Engine Evaluation | With real users and real data, evaluate whether the Agent SDK abstraction layer should be swapped to a different engine. Questions to answer: Is the 12-second startup delay hurting user experience? Are users asking for non-Claude models? Is the proprietary license causing adoption friction? Are API costs too high without multi-model routing? If yes to any, the abstraction layer from Phase 2 makes switching straightforward. Pi's architecture or a custom engine could be the migration target. See `implementation/Research-Pi-vs-AgentSDK.md`. | Small (0.5 weeks) |
 
 ### Parallel Sessions — Phase 4
 
 | Session | Workstream |
 |---------|-----------|
-| **S1** | Web UI — the chat interface (channel list on the left, messages in the middle, context panel on the right — like Slack) |
-| **S2** | Web UI — the dashboard views (home page, KPI metrics, org chart visualization, task board, reports, settings) |
-| **S3** | Telegram Bot — mapping company channels to Telegram chats, bot commands, receiving notifications, approving decisions inline |
-| **S4** | Security & Vault — encrypted storage for API keys and secrets, role-based access control, plus trust-level tracking (Slack Bot was already built in Phase 2) |
-| **S5** | Smart search (Qdrant vector database), AI-generated audit summaries, and making sure everything works together smoothly (integration testing) |
+| **S1** | Board of Directors (#8) — advisory body, board member persona system, 3 progressive operating modes, 4 meeting formats, voting mechanics, #board-room channel |
+| **S2** | Internal Communication System (#40) + Web UI chat interface — built-in channels, message persistence, channel membership, DMs, Web UI chat tab with channel sidebar |
+| **S3** | Telegram Bot (#17) + Multi-User Access Control (#41) — Telegram channel mapping and bot commands are medium-sized; multi-user adds login/sessions/roles to the Web UI. Both touch different files. |
+| **S4** | Security Vault (#21) + Audit Trail (#22+) — naturally paired. Vault stores secrets, audit trail logs access to them. Both are about security and compliance. |
+| **S5** | Semantic Search (#7+) + Engine Evaluation (#32) — Qdrant vector DB upgrade to knowledge system. Engine eval is a small research/assessment task that runs alongside. |
 
 ---
 
@@ -549,7 +557,7 @@ Founder gives BRIEF -> CEO decomposes -> C-SUITE delegates -> AGENTS produce DEL
 | **Database** | SQLite | A tiny, fast database that stores everything locally — no servers needed. Perfect for a tool that runs on your computer. Already installed in our project. |
 | **Smart search** (Phase 4) | Qdrant | A database that understands meaning, not just keywords. Open source, fast, and can keep different companies' data separate. Added later when we need intelligent search. |
 | **Tool connections** (Phase 3) | Composio gateway → then direct MCP servers | Composio gives us instant access to 300+ tools (Slack, email, GitHub, etc.). We start with that, then build direct connections for the most important tools. |
-| **Web dashboard** (Phase 4) | React + Vite | The most popular tools for building web interfaces. React is used by Facebook, Airbnb, Netflix. Vite makes development fast. |
+| **Web dashboard** (Phase 2.5) | Next.js 16 + shadcn/ui + Tailwind v4 | Already built in Phase 2.5 Wave A. Next.js is a popular framework for building web apps. shadcn/ui provides beautiful pre-built components. Tailwind makes styling fast. Reads directly from the same SQLite database the CLI uses. |
 | **How users install it** | npm (`npx aicib init`) | The standard way to distribute JavaScript tools. Users type one command and it works — no downloading, no setup wizards. |
 | **Legal license** | MIT | The most permissive open-source license. Anyone can use, modify, and distribute our code for any purpose. This maximizes adoption and is what most successful open-source projects use. |
 
@@ -617,42 +625,51 @@ LAYER 1: Core (the essential systems that enable everything above)
   [1] ──> [10] Token Budget (cost tracking)
   [1] ──> [21] Security (access control)
   [1] ──> [22] Audit Trail (activity logging)
-  [1] ──> [26] CEO Memory (session journals + context injection) ← NEW Phase 1
-  [1] ──> [27] Background Mode (async brief execution) ← NEW Phase 1
+  [1] ──> [26] CEO Memory (session journals + context injection) ← Phase 1
+  [1] ──> [27] Background Mode (async brief execution) ← Phase 1
 
 LAYER 2: Intelligence (makes agents smart, not just functional)
   [2,4] ──> [5] Autonomy Matrix (who can decide what)
   [4,10] ──> [6] Task Management (internal task board)
   [2,1] ──> [3] Skills System (agent capabilities)
   [1,4] ──> [24] Error Handling (what happens when things break)
-  [26,27,6] ──> [28] Long Autonomous Task Chains (multi-hour projects) ← NEW Phase 2
-  [10] ──> [29] Multi-Model Support (LiteLLM + model routing) ← NEW Phase 2
-  [10,29] ──> [30] Cost Tracking Upgrade (API-reported costs + configurable pricing) ← NEW Phase 2
-  [29] ──> [31] Agent Engine Abstraction Layer (thin interface for future engine flexibility) ← NEW Phase 2
-  [31,16] ──> [32] Agent Engine Evaluation (assess switching based on real user data) ← NEW Phase 4
+  [26,27,6] ──> [28] Long Autonomous Task Chains (multi-hour projects) ← Phase 2
+  [10] ──> [29] Multi-Model Support (LiteLLM + model routing) ← Phase 2
+  [10,29] ──> [30] Cost Tracking Upgrade (API-reported costs + configurable pricing) ← Phase 2
+  [29] ──> [31] Agent Engine Abstraction Layer (thin interface for future engine flexibility) ← Phase 2
+  [31] ──> [32] Agent Engine Evaluation (assess switching based on real user data) ← Phase 4
 
-LAYER 3: Organization (makes it feel like a real company)
-  [5,10] ──> [9] HR System (hiring, reviews, lifecycle)
-  [9,6] ──> [34] Automated Performance Reviews (task-triggered manager reviews) ← NEW Phase 3
-  [4,5] ──> [7] Knowledge Management (company wiki/memory)
-  [4,5] ──> [8] Board of Directors (advisory panel)
-  [5,22] ──> [14] External Safeguards (safety rules for real-world actions)
+LAYER 2.5: First External Interface + Agent Customization
+  [4] ──> [18] Slack Bot (Phase 2 — first interface outside the terminal)
+  [18] ──> [33] Slack Interaction Improvements (chat mode, dept channels, agent names) ← Phase 2 Wave 2
+  [2] ──> [35] Agent Persona Studio (3-tier customization: presets, traits, soul.md editor) ← NEW Phase 2.5 Wave C
+  [5] ──> [37] Communication Routing Rules (strict hierarchy, open+CC, custom) ← NEW Phase 2.5 Wave D
 
-LAYER 4: Delivery (how information reaches you)
-  [4,5,6] ──> [11] Notifications (alerts and digests)
-  [6,7,9,10] ──> [12] Reporting (automated reports)
-  [4,6] ──> [13] Company Events (meetings and standups)
-  [3,14,21] ──> [15] MCP Integration (connecting to real tools)
+LAYER 3: Automation & Real-World Actions (makes the company run itself)
+  [27,28] ──> [36] Agent Scheduler / Cron System (scheduled + trigger-based activation) ← NEW Phase 3
+  [3,5] ──> [15] MCP Integration (connecting to real tools via Composio) ← Phase 3
+  [5,15] ──> [14] External Safeguards (safety rules for real-world actions) ← Phase 3
+  [5,14] ──> [38] Trust Evolution (agents earn more autonomy over time) ← NEW Phase 3
+  [6] ──> [39] Review Chain Configuration (multi-layer quality control) ← NEW Phase 3
 
-LAYER 2.5: First External Interface (pulled forward from Phase 4)
-  [4] ──> [18] Slack Bot (moved to Phase 2 — first interface outside the terminal)
-  [18] ──> [33] Slack Interaction Improvements (chat mode, dept channels, agent names) ← NEW Phase 2 Wave 2
+LAYER 4: Organization & Delivery (makes it feel like a real company)
+  [5,10] ──> [9] HR System (hiring, reviews, lifecycle) ← Phase 2
+  [9,6,36] ──> [34] Automated Performance Reviews (task-triggered manager reviews) ← Phase 3
+  [4,5] ──> [7] Knowledge Management (company wiki/memory) ← Phase 2
+  [36,4,5,6] ──> [11] Notifications (alerts and digests) ← Phase 3
+  [36,6,7,9,10] ──> [12] Reporting (automated scheduled reports) ← Phase 3
+  [36,4,6] ──> [13] Company Events (meetings and standups on schedules) ← Phase 3
+  [25,7] ──> [23] Data Export/Import (backup and portability) ← Phase 3
 
-LAYER 5: Interfaces (how you interact with the system)
-  [ALL] ──> [16] Web UI (dashboard in your browser)
-  [4,11] ──> [17] Telegram Bot
-  [2,3,7] ──> [20] Template System (shareable company configs)
-  [25,7] ──> [23] Data Export/Import (backup and portability)
+LAYER 5: Differentiation & Scale (unique features + production readiness)
+  [4,5,35] ──> [8] Board of Directors (advisory panel — moved to Phase 4)
+  [4] ──> [40] Internal Communication Channel System (built-in Slack-like channels) ← NEW Phase 4
+  [4,11] ──> [17] Telegram Bot ← Phase 4
+  [1] ──> [41] Multi-User Access Control (Owner, Admin, Dept Head, Viewer) ← NEW Phase 4
+  [2,3,7] ──> [20] Template System (community sharing/marketplace) ← Phase 2.5 Wave D + Phase 3
+
+LAYER 6: Interfaces (how you interact with the system)
+  [ALL] ──> [16] Web UI (dashboard — core built in Phase 2.5, extended in later phases)
 ```
 
 ---
@@ -667,7 +684,9 @@ LAYER 5: Interfaces (how you interact with the system)
 | Costs are too high | When 9 AI agents talk to each other, API fees could add up fast and make the product impractical | We track costs from day 1. We use cheaper AI models (Haiku) for simple tasks and expensive ones (Opus) only for strategic decisions. Target: under $5 per full company session. |
 | All agents sound the same | If the CTO and CMO both write generic-sounding responses, the "wow factor" disappears | Invest heavily in soul.md quality. Test by reading agent outputs without names — can you tell who wrote it? If not, the personas need work. |
 | Building too much too fast | The communication system could become an entire Slack clone, or the HR system could become an entire HRIS | Always build the simplest version first. Basic channels + DMs before routing rules. Basic task list before priority queues. Add complexity only when needed. |
-| Web dashboard delays everything | A proper web interface takes 3-4 weeks and could push the whole timeline | That's why it's Phase 4, not Phase 1. Every successful AI tool launched without a web UI. The terminal demo is actually MORE shareable (GIFs are perfect for Twitter/HN). **Slack integration in Phase 2 gives us a real interface much sooner** — it takes days instead of weeks and lets the founder interact with the company naturally while we build the full dashboard later. |
+| Web dashboard delays everything | A proper web interface takes 3-4 weeks and could push the whole timeline | **MITIGATED.** Web UI was pulled forward to Phase 2.5 and Wave A is already complete. The wave-based approach (A: foundation, B: dashboards, C: persona studio, D: config) means each wave ships incrementally. Slack integration in Phase 2 also gives a real interface. Both terminal and Slack work while the Web UI is being expanded. |
+| Agent customization is too shallow | If users can't customize their agents beyond model selection, the product feels generic — agents are "our" employees, not "their" employees | Phase 2.5 Wave C introduces the Agent Persona Studio: custom naming, role-specific personality presets, background/experience configuration, trait sliders, and a soul.md editor in the browser. This mirrors the three-tier system from the vision document and makes every company feel unique. |
+| No scheduled agent activation | Without cron-like scheduling, agents only work when the founder tells them to — undermining the "runs while you sleep" promise | Phase 3 introduces the Agent Scheduler (#36) as the first feature, enabling scheduled activations (morning briefings, weekly standups, automated reports). This is the foundation that events, reports, and notifications all build on. |
 | Security vulnerabilities | Research found 43% of MCP implementations (tool connections) have security flaws | We'll audit all tool connections, isolate each one in containers (sandboxed environments), and limit what each agent can access based on their role. |
 
 ---
@@ -696,14 +715,21 @@ LAYER 5: Interfaces (how you interact with the system)
 
 ## Open Decisions
 
-These should be decided before or during Phase 1:
+**Resolved decisions (from Phase 1-2 implementation):**
+1. ~~**Product name:**~~ Using `aicib` for now. Can rebrand later.
+2. ~~**Installation method:**~~ `npx aicib init` confirmed.
+3. ~~**Agent communication visibility:**~~ Full delegation visible in terminal with color-coded agent messages. Slack shows per-department activity.
+4. ~~**Deliverable format:**~~ Markdown files in project directory. Both human-readable and terminal-displayable.
+5. ~~**Model selection:**~~ Users choose per-agent models (opus/sonnet/haiku). Smart defaults set by template.
+6. ~~**Cost tracking detail level:**~~ Per agent per session. Per-task tracking deferred.
 
-1. **Product name:** Is `aicib` the final command name? Other options: `founderai`, `teamforge`, `hiveexec`. The command name is what users type every time they use the product.
-2. **Installation method:** Current plan is `npx aicib init` (instant, no permanent install). Is this the right first impression?
-3. **Agent communication visibility:** How much of the agents' internal conversations should the user see? Everything (could be overwhelming)? Summaries only? Just escalations and final deliverables?
-4. **Deliverable format:** Should agents produce Markdown files (human-readable text documents)? Structured data that the terminal can display? Both?
-5. **Model selection:** Should the MVP let users choose which AI model each agent uses, or just ship with smart defaults and no choices?
-6. **Cost tracking detail level:** Track costs per agent per session? Or per agent per task? The latter is more useful but harder to build.
+**New open decisions (for Phase 2.5-3):**
+1. **Agent naming convention:** Should custom names be required during setup, or optional with role-title as default? ("CEO Sarah" vs just "CEO")
+2. **Persona preset depth:** How many role-specific presets per role? Vision says 3-5. Should we ship with 3 per C-suite role and 2 per worker role, or invest in the full 5?
+3. **Communication routing default:** Should new companies default to "Open + CC Manager" (most common in real companies) or "Strict Hierarchy" (simplest to understand)?
+4. **Agent scheduler scope:** Should scheduled activation be simple cron-style ("every day at 9am") or also support complex rules ("every Monday, but skip holidays")?
+5. **Template expansion priority:** Which 2-3 industry templates should we build after SaaS Startup? Top candidates: Marketing Agency, E-commerce Store, Consulting Firm.
+6. **Board of Directors timing:** Should we pull Board of Directors into Phase 3 if we finish Phase 3 early, or keep it strictly in Phase 4?
 
 ---
 
