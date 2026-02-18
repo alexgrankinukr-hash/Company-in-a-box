@@ -22,6 +22,7 @@ import "./knowledge-register.js";
 import "./project-register.js";
 import "./routing-register.js";
 import "./review-chains-register.js";
+import "./mcp-register.js";
 import "./safeguards-register.js";
 import "./scheduler-register.js";
 

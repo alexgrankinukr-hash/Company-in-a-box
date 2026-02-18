@@ -610,6 +610,22 @@ export class CostTracker {
     return `## Recent Session History\n\n${lines.join("\n\n")}`;
   }
 
+  /**
+   * Run a read query against a registered extension table.
+   * Avoids exposing the private `db` handle while letting extensions
+   * query their own tables (e.g., mcp_integrations).
+   */
+  queryRegisteredTable<T = Record<string, unknown>>(sql: string, ...params: unknown[]): T[] {
+    return this.db.prepare(sql).all(...params) as T[];
+  }
+
+  /**
+   * Run a write statement against a registered extension table.
+   */
+  runOnRegisteredTable(sql: string, ...params: unknown[]): void {
+    this.db.prepare(sql).run(...params);
+  }
+
   close(): void {
     this.db.close();
   }
