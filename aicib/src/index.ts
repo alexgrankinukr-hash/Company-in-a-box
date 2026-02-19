@@ -114,6 +114,7 @@ import {
   scheduleStopCommand,
   scheduleStatusCommand,
 } from "./cli/schedule.js";
+import { exportCommand, importCommand } from "./cli/data-export.js";
 
 const program = new Command();
 
@@ -660,5 +661,28 @@ template
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .option("-o, --output <path>", "Output directory", "template-export")
   .action(templateExportCommand);
+
+// --- Data Export/Import ---
+program
+  .command("export")
+  .description("Export company data (full backup, selective, or anonymized template)")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .option("-o, --output <path>", "Output path")
+  .option("--mode <mode>", "Export mode: full, selective, anonymized", "full")
+  .option("--only <categories>", "Comma-separated categories")
+  .option("--no-compress", "Output directory instead of .tar.gz")
+  .option("--include-secrets", "Include integration secrets (use with caution)")
+  .action(exportCommand);
+
+program
+  .command("import <path>")
+  .description("Import company data from an export package")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .option("--merge", "Merge into existing company")
+  .option("--only <categories>", "Import only specific categories")
+  .option("--overwrite-agents", "Overwrite existing agent definitions")
+  .option("--force", "Overwrite existing config without prompting")
+  .option("--company-name <name>", "Company name for anonymized packages")
+  .action(importCommand);
 
 program.parse();
