@@ -23,7 +23,16 @@ import {
   createTable,
   agentColor,
   formatTimeAgo,
+  formatUSD,
 } from "./ui.js";
+import {
+  processAutoReviewQueue,
+  isEligibleForAutoReview,
+  AUTO_REVIEW_CONFIG_DEFAULTS,
+  type AutoReviewConfig,
+  type AutoReviewQueueEntry,
+} from "../core/perf-review.js";
+import Database from "better-sqlite3";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -406,6 +415,7 @@ export async function hrReviewCommand(
 
 interface ReviewsOptions extends HROptions {
   limit?: string;
+  auto?: boolean;
 }
 
 export async function hrReviewsCommand(
@@ -419,16 +429,24 @@ export async function hrReviewsCommand(
 
     if (!role) {
       console.log(header("Reviews"));
-      console.log(chalk.dim("  Usage: aicib hr reviews <role> [--limit N]\n"));
+      console.log(chalk.dim("  Usage: aicib hr reviews <role> [--limit N] [--auto]\n"));
       return;
     }
 
-    console.log(header(`Reviews — ${role}`));
+    const autoLabel = options.auto ? " (auto only)" : "";
+    console.log(header(`Reviews — ${role}${autoLabel}`));
 
-    const reviews = hr.getReviews(role, limit);
+    let reviews = hr.getReviews(role, limit);
+
+    // Filter to only automated reviews if --auto flag is set
+    if (options.auto) {
+      reviews = reviews.filter((r) =>
+        r.review_type === "periodic" && r.reviewer !== "human-founder"
+      );
+    }
 
     if (reviews.length === 0) {
-      console.log(chalk.dim("  No reviews found.\n"));
+      console.log(chalk.dim(`  No ${options.auto ? "automated " : ""}reviews found.\n`));
       return;
     }
 
@@ -777,5 +795,107 @@ export async function hrHistoryCommand(
     console.log(chalk.dim(`\n  Showing ${events.length} event(s).\n`));
   } finally {
     hr.close();
+  }
+}
+
+// ── Auto-Reviews Dashboard ──────────────────────────────────────
+
+interface AutoReviewsOptions extends HROptions {
+  process?: boolean;
+}
+
+export async function hrAutoReviewsCommand(
+  options: AutoReviewsOptions
+): Promise<void> {
+  const projectDir = path.resolve(options.dir);
+
+  let config;
+  try {
+    config = loadConfig(projectDir);
+  } catch (error) {
+    console.error(
+      chalk.red(
+        `  Error: ${error instanceof Error ? error.message : String(error)}`
+      )
+    );
+    process.exit(1);
+  }
+
+  const autoConfig = (config.extensions?.auto_reviews as AutoReviewConfig) || AUTO_REVIEW_CONFIG_DEFAULTS;
+
+  // Process queue if --process flag is set
+  if (options.process) {
+    console.log(chalk.dim("  Processing auto-review queue..."));
+
+    const processed = processAutoReviewQueue(projectDir, autoConfig);
+    console.log(`  ${chalk.green("\u2713")} Processed ${processed} auto-review(s).\n`);
+  }
+
+  console.log(header("Auto-Reviews Dashboard"));
+
+  let db: Database.Database | undefined;
+  try {
+    db = new Database(path.join(projectDir, ".aicib", "state.db"), { readonly: true });
+    db.pragma("busy_timeout = 3000");
+
+    // Queue status
+    const pending = db
+      .prepare("SELECT COUNT(*) as count FROM auto_review_queue WHERE status = 'pending'")
+      .get() as { count: number };
+    const completed = db
+      .prepare("SELECT COUNT(*) as count FROM auto_review_queue WHERE status = 'completed'")
+      .get() as { count: number };
+    const skipped = db
+      .prepare("SELECT COUNT(*) as count FROM auto_review_queue WHERE status = 'skipped'")
+      .get() as { count: number };
+
+    console.log(chalk.bold("  Queue Status:"));
+    console.log(`    Pending:   ${pending.count}`);
+    console.log(`    Completed: ${completed.count}`);
+    console.log(`    Skipped:   ${skipped.count}`);
+    console.log();
+
+    // Recently completed auto-reviews
+    const recent = db
+      .prepare("SELECT * FROM auto_review_queue WHERE status IN ('completed', 'skipped') ORDER BY processed_at DESC LIMIT 10")
+      .all() as AutoReviewQueueEntry[];
+
+    if (recent.length > 0) {
+      console.log(chalk.bold("  Recent Auto-Reviews:"));
+      const table = createTable(
+        ["ID", "Agent", "Trigger", "Status", "Review ID", "Processed"],
+        [6, 16, 16, 12, 10, 12]
+      );
+
+      for (const entry of recent) {
+        table.push([
+          String(entry.id),
+          agentColor(entry.agent_role)(truncate(entry.agent_role, 14)),
+          truncate(entry.trigger_event, 14),
+          entry.status === "completed" ? chalk.green("completed") : chalk.dim("skipped"),
+          entry.review_id ? String(entry.review_id) : chalk.dim("--"),
+          chalk.dim(entry.processed_at ? formatTimeAgo(entry.processed_at) : "N/A"),
+        ]);
+      }
+
+      console.log(table.toString());
+      console.log();
+    }
+
+    console.log(chalk.bold("  Configuration:"));
+    console.log(`    Enabled:    ${autoConfig.enabled ? chalk.green("yes") : chalk.red("no")}`);
+    console.log(`    Trigger:    ${autoConfig.trigger}`);
+    console.log(`    Min tasks:  ${autoConfig.min_tasks_before_review}`);
+    console.log(`    Cooldown:   ${autoConfig.cooldown_hours}h`);
+    console.log(`    Cadence:    ${autoConfig.periodic_cadence}`);
+    console.log();
+
+    if (pending.count > 0) {
+      console.log(chalk.yellow(`  ${pending.count} pending review(s). Run: aicib hr auto-reviews --process\n`));
+    }
+  } catch {
+    console.log(chalk.dim("  Auto-review queue is empty. Reviews will be queued when tasks are completed.\n"));
+  } finally {
+    db?.close();
   }
 }

@@ -13,6 +13,8 @@ import "./core/review-chains-register.js";
 import "./core/mcp-register.js";
 import "./core/safeguards-register.js";
 import "./core/scheduler-register.js";
+import "./core/reporting-register.js";
+import "./core/perf-review-register.js";
 
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
@@ -60,6 +62,7 @@ import {
   hrImproveCommand,
   hrStateCommand,
   hrHistoryCommand,
+  hrAutoReviewsCommand,
 } from "./cli/hr.js";
 import {
   projectStatusCommand,
@@ -101,6 +104,14 @@ import {
   trustRecommendationsCommand,
   trustSetCommand,
 } from "./cli/trust.js";
+import {
+  reportDashboardCommand,
+  reportGenerateCommand,
+  reportListCommand,
+  reportShowCommand,
+  reportTemplatesCommand,
+  reportScheduleCommand,
+} from "./cli/report.js";
 import {
   scheduleDashboardCommand,
   scheduleListCommand,
@@ -383,8 +394,14 @@ hr.command("review <role>")
 hr.command("reviews [role]")
   .description("List performance reviews for an agent")
   .option("--limit <n>", "Max reviews to show", "10")
+  .option("--auto", "Show only automated reviews")
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(hrReviewsCommand);
+hr.command("auto-reviews")
+  .description("Automated performance review dashboard and queue")
+  .option("--process", "Process pending auto-review queue")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(hrAutoReviewsCommand);
 hr.command("promote <role>")
   .description("Record agent promotion")
   .requiredOption("--to <level>", "Target autonomy level")
@@ -604,6 +621,43 @@ schedule
 schedule
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(scheduleDashboardCommand);
+
+// --- Reporting Suite ---
+const report = program.command("report").description("Reporting suite: generate, view, and schedule reports");
+report
+  .command("generate <type>")
+  .description("Generate a report (daily_briefing, weekly_department, monthly_financial, sprint_review, marketing_report)")
+  .option("--delivery <method>", "Delivery method (slack, file, both)", "file")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(reportGenerateCommand);
+report
+  .command("list")
+  .description("List all reports")
+  .option("--type <type>", "Filter by report type")
+  .option("--status <status>", "Filter by status (pending, generating, completed, failed)")
+  .option("--limit <n>", "Max reports to show", "20")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(reportListCommand);
+report
+  .command("show <id>")
+  .description("Show full report content and metadata")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(reportShowCommand);
+report
+  .command("templates")
+  .description("List built-in report templates")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(reportTemplatesCommand);
+report
+  .command("schedule <type>")
+  .description("Create a recurring schedule for a report type")
+  .option("--cron <expression>", "Cron expression (e.g., '0 9 * * 1-5')")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(reportScheduleCommand);
+// Default action: show dashboard when bare `aicib report` is run
+report
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(reportDashboardCommand);
 
 // --- Web UI ---
 program
