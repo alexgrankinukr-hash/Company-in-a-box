@@ -27,6 +27,8 @@ import "./safeguards-register.js";
 import "./scheduler-register.js";
 import "./reporting-register.js";
 import "./perf-review-register.js";
+import "./notifications-register.js";
+import "./events-register.js";
 
 import { loadConfig } from "./config.js";
 import type { AicibConfig } from "./config.js";
@@ -36,6 +38,8 @@ import { getEngine } from "./engine/index.js";
 import { sendBrief, recordRunCosts, generateJournalEntry, formatMessagePlain } from "./agent-runner.js";
 import { ProjectPlanner, type ProjectConfig, PROJECT_CONFIG_DEFAULTS } from "./project-planner.js";
 import { TaskManager } from "./task-manager.js";
+import { EventManager, type EventConfig, type ParticipantsConfig, EVENTS_CONFIG_DEFAULTS } from "./events.js";
+import { NotificationManager } from "./notifications.js";
 
 // SIGTERM flag for graceful shutdown between phases
 let sigtermReceived = false;
@@ -628,6 +632,173 @@ async function runProjectLoop(
   }
 }
 
+/**
+ * Run an event brief — facilitates a company event and processes the output.
+ * Detects [EVENT::<event_id>::<instance_id>] prefix in the directive.
+ */
+async function runEventBrief(
+  jobId: number,
+  eventId: number,
+  directive: string,
+  projectDir: string,
+  sdkSessionId: string,
+  sessionId: string,
+  config: AicibConfig,
+  costTracker: CostTracker
+): Promise<void> {
+  const startTime = Date.now();
+  const eventsConfig = (config.extensions?.events as EventConfig | undefined) ?? EVENTS_CONFIG_DEFAULTS;
+  let em: EventManager | undefined;
+  let nm: NotificationManager | undefined;
+
+  try {
+    em = new EventManager(projectDir);
+    const event = em.getEvent(eventId);
+    if (!event) {
+      throw new Error(`Event #${eventId} not found`);
+    }
+
+    // Resolve participants and create instance
+    let participantsConfig: ParticipantsConfig;
+    try {
+      participantsConfig = JSON.parse(event.participants_config);
+    } catch {
+      participantsConfig = { mode: "all" };
+    }
+    const participants = em.resolveParticipants(participantsConfig, projectDir, config);
+    const instance = em.createInstance(eventId, participants);
+
+    // Generate agenda and update instance
+    const agenda = em.generateAgenda(event, participants, projectDir);
+    em.updateInstance(instance.id, {
+      status: "in_progress",
+      agenda,
+      started_at: new Date().toISOString(),
+    });
+
+    // Build the full directive with event context
+    const eventDirective = em.buildEventDirective(event, {
+      ...instance,
+      agenda,
+    });
+
+    costTracker.setAgentStatus("ceo", "working", `Event: ${event.name}`);
+
+    const eventMessages: EngineMessage[] = [];
+    const result = await sendBrief(
+      sdkSessionId,
+      eventDirective,
+      projectDir,
+      config,
+      (msg) => {
+        eventMessages.push(msg);
+        createMessageCallback(jobId, costTracker, `[EVENT:${event.name}]`)(msg);
+      }
+    );
+
+    recordRunCosts(result, costTracker, sessionId, "ceo", config.agents.ceo?.model || "opus");
+
+    // Extract assistant text for minutes
+    const durationMs = Date.now() - startTime;
+    const outputText = extractAssistantText(eventMessages);
+
+    // Format minutes
+    const minutes = em.formatMinutes(event, instance.id, outputText, eventsConfig.minutes_format);
+
+    // Extract action items
+    const actionItems = em.extractActionItems(outputText);
+
+    // Update instance with results
+    em.updateInstance(instance.id, {
+      status: "completed",
+      minutes,
+      action_items: JSON.stringify(actionItems),
+      summary: outputText.slice(0, 500),
+      completed_at: new Date().toISOString(),
+      duration_ms: durationMs,
+      cost_usd: result.totalCostUsd,
+    });
+
+    // Update event counters
+    em.updateEvent(eventId, {
+      last_run_at: new Date().toISOString().replace("T", " ").slice(0, 19),
+      run_count: event.run_count + 1,
+      next_run_at: event.cron_expression
+        ? em.computeNextRun(event.cron_expression)
+        : null,
+    });
+
+    // Create notifications for participants
+    nm = new NotificationManager(projectDir);
+    for (const participant of participants) {
+      nm.createNotification({
+        title: `${event.name} completed`,
+        body: `Meeting minutes and ${actionItems.length} action items are available.`,
+        urgency: "medium",
+        category: "event_output",
+        target_agent: participant,
+        event_id: eventId,
+        source_agent: "system",
+      });
+    }
+
+    // Create tasks for action items if enabled
+    if (eventsConfig.auto_create_action_items && actionItems.length > 0) {
+      let tm: TaskManager | undefined;
+      try {
+        tm = new TaskManager(projectDir);
+        for (const item of actionItems) {
+          const task = tm.createTask({
+            title: `[Event Action] ${item.description}`,
+            description: `From ${event.name}: ${item.description}`,
+            assignee: item.assignee,
+            priority: "medium",
+            created_by: "system",
+            session_id: sessionId,
+            deadline: item.deadline || undefined,
+          });
+          item.task_id = task.id;
+        }
+        // Write enriched action items (with task_ids) back to instance
+        em!.updateInstance(instance.id, {
+          action_items: JSON.stringify(actionItems),
+        });
+      } catch {
+        // Task creation is best-effort
+      } finally {
+        tm?.close();
+      }
+    }
+
+    costTracker.setAgentStatus("ceo", "idle");
+
+    costTracker.updateBackgroundJob(jobId, {
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      total_cost_usd: result.totalCostUsd,
+      num_turns: result.numTurns,
+      duration_ms: durationMs,
+      result_summary: `Event "${event.name}" completed: ${actionItems.length} action items`,
+    });
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+
+    costTracker.logBackgroundMessage(jobId, "error", "system", `[EVENT] ${errorMsg}`);
+    try { costTracker.setAgentStatus("ceo", "error"); } catch { /* best-effort */ }
+
+    costTracker.updateBackgroundJob(jobId, {
+      status: "failed",
+      completed_at: new Date().toISOString(),
+      duration_ms: durationMs,
+      error_message: errorMsg,
+    });
+  } finally {
+    em?.close();
+    nm?.close();
+  }
+}
+
 async function main(): Promise<void> {
   const [, , jobIdStr, projectDir, sdkSessionId] = process.argv;
 
@@ -669,13 +840,21 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Strip optional [SCHEDULED::N] prefix added by scheduler-daemon
+  const stripped = directive.replace(/^\[SCHEDULED::\d+\]\s*/, "");
+
   // Detect project mode: directive starts with [PROJECT::<id>]
-  const projectMatch = directive.match(/^\[PROJECT::(\d+)\]\s*(.*)/s);
+  const projectMatch = stripped.match(/^\[PROJECT::(\d+)\]\s*(.*)/s);
+  // Detect event mode: directive starts with [EVENT::<event_id>::<instance_id>]
+  const eventMatch = stripped.match(/^\[EVENT::(\d+)::(\d+)\]\s*(.*)/s);
 
   try {
     if (projectMatch) {
       const projectId = parseInt(projectMatch[1], 10);
       await runProjectLoop(jobId, projectId, projectDir, sdkSessionId, job.session_id, config, costTracker);
+    } else if (eventMatch) {
+      const eventId = parseInt(eventMatch[1], 10);
+      await runEventBrief(jobId, eventId, stripped, projectDir, sdkSessionId, job.session_id, config, costTracker);
     } else {
       await runSingleBrief(jobId, directive, projectDir, sdkSessionId, job.session_id, config, costTracker);
     }

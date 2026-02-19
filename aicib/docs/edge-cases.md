@@ -1007,6 +1007,44 @@ Track edge cases discovered during implementation.
 **Handling:** NL fallback assigns `agent: "ceo"` — same pattern as other register files (e.g., HR NL assigns `department: "general"`). REQUEST only creates pending actions, never auto-approves. Structured SAFEGUARD:: markers are the primary interface.
 **User sees:** Nothing — pending action created for CEO. CEO can approve/reject via structured markers.
 
+## Data Export/Import (Phase 3 Wave 2 Session 9)
+
+### Export — DB Connection Leak on Error
+
+**Scenario:** Export opens state.db in read-only mode but an error occurs during table iteration (e.g., corrupted table, disk full writing JSON files).
+**Handling:** DB open and close wrapped in `try/finally`. `db.close()` always executes regardless of errors.
+**User sees:** Error message from the CLI. No leaked DB connections.
+
+### Export — Partial Export Cleanup
+
+**Scenario:** Export creates the export directory and starts writing files, but fails mid-process (e.g., disk full, tar compression fails).
+**Handling:** `exportCompanyData()` body wrapped in `try/catch` that calls `fs.rmSync(exportDir, { recursive: true })` on any error, then re-throws.
+**User sees:** Error message. No partial export directory left on disk.
+
+### Import — Tar Extraction Failure
+
+**Scenario:** Archive is corrupted or tar command fails. tempDir was created but extraction didn't complete.
+**Handling:** Tar extraction moved inside the `try` block whose `finally` always cleans up tempDir. Cleanup runs whether extraction fails, validation fails, or import fails.
+**User sees:** Error from tar command. No leftover temp directory.
+
+### Export/Import — Invalid Table Name in SQL
+
+**Scenario:** A table name in CATEGORY_TABLES somehow contains special characters (defense-in-depth, shouldn't happen with current constants).
+**Handling:** `VALID_TABLE_NAME` regex (`^[a-z0-9_]+$`) checked before any SQL construction in both export and import. Invalid names silently skipped.
+**User sees:** Nothing — invalid table names are skipped without error.
+
+### Export — Secret Pattern False Positives
+
+**Scenario:** Config key "author" or "authorized_at" or "auth_method" is redacted to `{{REDACTED}}` by the overly broad `/auth/i` pattern.
+**Handling:** Replaced `/auth/i` with specific patterns: `/auth_token/i`, `/auth_secret/i`, `/oauth_token/i`, `/oauth_secret/i`. Structural fields like "author" are preserved.
+**User sees:** Correct config export — structural fields intact, only actual secrets redacted.
+
+### Import — DB Connection Leak on Transaction Error
+
+**Scenario:** Import opens state.db writable, but the transaction fails (e.g., constraint violation, disk full).
+**Handling:** DB open and close wrapped in `try/finally` inside the data import block. `db.close()` always executes.
+**User sees:** Error message. No leaked DB connections.
+
 ### Dashboard — Tasks Table Missing
 
 **Scenario:** Database exists but `tasks` table hasn't been created yet (happens if `aicib start` was run before task management was added, or on very old DB versions).
@@ -1108,3 +1146,61 @@ Track edge cases discovered during implementation.
 **Scenario:** `windowDays` parameter interpolated directly into SQL template strings. If a non-integer value were passed, it could corrupt the query.
 **Handling:** Value is clamped to `Math.max(1, Math.min(365, Math.floor(windowDays)))` and all queries use `datetime('now', ?)` with bound parameters instead of string interpolation.
 **User sees:** No change in behavior; defense-in-depth fix.
+
+## Notification System (Phase 3 Wave 2 Session 8)
+
+### Notifications — Async/Close Race in Scheduler Daemon
+
+**Scenario:** `processNotifications()` calls `nm.processNotificationQueue()` (async, may do Slack HTTP calls) but the `finally` block closes the DB immediately while delivery is in flight.
+**Handling:** `NotificationManager.processQueue()` static method opens its own DB connection, awaits the full queue processing, and closes in its own `finally` block. The scheduler daemon calls this fire-and-forget with `.catch()`.
+**User sees:** Nothing — Slack delivery completes correctly instead of failing with a closed DB.
+
+### Notifications — Digest Batches Never Delivered
+
+**Scenario:** Medium/low urgency notifications are batched by `buildDigestBatches()` which marks them as "batched", but `processNotificationQueue()` only counted them without calling `markDelivered()`.
+**Handling:** After building digest batches, `markDelivered(ids, "digest")` is called for each batch. Items progress from "batched" to "delivered" status.
+**User sees:** Nothing — notifications don't get stuck in "batched" status forever.
+
+### Notifications — Slack bot_token Table Missing
+
+**Scenario:** `deliverViaSlack()` queries `slack_state` table for `bot_token`, but Slack integration hasn't been set up yet.
+**Handling:** `this.db.prepare(...)` wrapped in try-catch. Missing table falls through to `botToken = null`, which triggers dashboard fallback delivery.
+**User sees:** Notification delivered to dashboard instead of Slack.
+
+### Notifications — Quiet Hours Critical Override
+
+**Scenario:** It's 2 AM (quiet hours) and a critical system error notification is created.
+**Handling:** `getPendingPushNotifications()` filters by quiet hours but exempts `urgency === "critical"`. Critical notifications always push through.
+**User sees:** Critical alerts arrive immediately regardless of quiet hours.
+
+## Company Events (Phase 3 Wave 2 Session 8)
+
+### Events — SCHEDULED Prefix Blocks EVENT Detection
+
+**Scenario:** Scheduler daemon prepends `[SCHEDULED::42]` to every directive. Background worker receives `[SCHEDULED::42] [EVENT::5::0] Facilitate Daily Standup...`. The regex `^\[EVENT::` is anchored to start and never matches.
+**Handling:** Background worker strips optional `[SCHEDULED::N]` prefix before pattern matching: `directive.replace(/^\[SCHEDULED::\d+\]\s*/, "")`. Stripped version is also passed to `runEventBrief()`.
+**User sees:** Nothing — scheduled events now correctly route through `runEventBrief()` instead of `runSingleBrief()`.
+
+### Events — Malformed participants_config JSON
+
+**Scenario:** `participants_config` column contains invalid JSON (corruption, manual DB edit, schema migration).
+**Handling:** `JSON.parse()` wrapped in try-catch at 3 call sites. Defaults to `{ mode: "all" }` for config objects and `[]` for participant arrays.
+**User sees:** Event runs with all participants instead of crashing.
+
+### Events — Action Item task_id Not Written Back
+
+**Scenario:** Action items are extracted and tasks created, but `task_id` is never set on the action items. `formatForContext()` filters by `!a.task_id`, so all action items always appear as "pending".
+**Handling:** After `tm.createTask()`, `item.task_id = task.id` is set. After the loop, `em.updateInstance(instance.id, { action_items: JSON.stringify(actionItems) })` writes enriched items back.
+**User sees:** Action items with tasks no longer appear in "pending action items" context section.
+
+### Events — Participant Resolution Empty Department
+
+**Scenario:** Department mode with no matching departments in org tree.
+**Handling:** `resolveParticipants()` falls back to `flattenTree(tree)` (all agents) when filtered roles array is empty.
+**User sees:** Event includes all agents instead of none.
+
+### Events — Event Without Cron Expression
+
+**Scenario:** Event created without `cron_expression` — exists in DB but has no schedule.
+**Handling:** No schedule is created (guarded by `if (!event.cron_expression)`). Event can be triggered manually via CLI or agent markers.
+**User sees:** Event appears in list but has no `next_run_at` date.
