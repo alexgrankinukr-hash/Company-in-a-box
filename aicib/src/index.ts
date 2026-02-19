@@ -13,6 +13,8 @@ import "./core/review-chains-register.js";
 import "./core/mcp-register.js";
 import "./core/safeguards-register.js";
 import "./core/scheduler-register.js";
+import "./core/notifications-register.js";
+import "./core/events-register.js";
 
 import { Command } from "commander";
 import { initCommand } from "./cli/init.js";
@@ -114,6 +116,27 @@ import {
   scheduleStopCommand,
   scheduleStatusCommand,
 } from "./cli/schedule.js";
+import {
+  notificationsCommand,
+  notificationsListCommand,
+  notificationsShowCommand,
+  notificationsDismissCommand,
+  notificationsPreferencesCommand,
+  notificationsPreferencesSetCommand,
+  notificationsSendCommand,
+} from "./cli/notifications.js";
+import {
+  eventsCommand,
+  eventsListCommand,
+  eventsCreateCommand,
+  eventsShowCommand,
+  eventsDeleteCommand,
+  eventsEnableCommand,
+  eventsDisableCommand,
+  eventsMinutesCommand,
+  eventsSetupCommand,
+  eventsHistoryCommand,
+} from "./cli/events.js";
 
 const program = new Command();
 
@@ -604,6 +627,123 @@ schedule
 schedule
   .option("-d, --dir <dir>", "Project directory", process.cwd())
   .action(scheduleDashboardCommand);
+
+// --- Notifications ---
+const notifications = program.command("notifications").description("Notification system: alerts, digests, and delivery preferences");
+notifications
+  .command("list")
+  .description("List notifications")
+  .option("--urgency <level>", "Filter by urgency (critical, high, medium, low)")
+  .option("--status <status>", "Filter by status (pending, delivered, read, dismissed)")
+  .option("--target <agent>", "Filter by target agent")
+  .option("--since <datetime>", "Show notifications since (ISO 8601)")
+  .option("--limit <n>", "Max notifications to show", "50")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(notificationsListCommand);
+notifications
+  .command("show <id>")
+  .description("Show full notification details")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(notificationsShowCommand);
+notifications
+  .command("dismiss <id>")
+  .description("Dismiss a notification")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(notificationsDismissCommand);
+const notifPrefs = notifications.command("preferences").description("Manage notification preferences");
+notifPrefs
+  .command("set")
+  .description("Set notification preferences")
+  .requiredOption("--scope <scope>", "Scope (global, department, agent)")
+  .requiredOption("--value <val>", "Scope value")
+  .option("--push-urgency <level>", "Minimum urgency for push notifications")
+  .option("--digest <frequency>", "Digest frequency (hourly, daily)")
+  .option("--quiet-start <time>", "Quiet hours start (HH:MM)")
+  .option("--quiet-end <time>", "Quiet hours end (HH:MM)")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(notificationsPreferencesSetCommand);
+// Default: show preferences
+notifPrefs
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(notificationsPreferencesCommand);
+notifications
+  .command("send")
+  .description("Send a manual notification")
+  .requiredOption("--title <title>", "Notification title")
+  .option("--urgency <level>", "Urgency (critical, high, medium, low)")
+  .option("--category <cat>", "Category")
+  .option("--target <agent>", "Target agent")
+  .option("--body <text>", "Notification body")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(notificationsSendCommand);
+// Default action: show dashboard when bare `aicib notifications` is run
+notifications
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(notificationsCommand);
+
+// --- Company Events ---
+const events = program.command("events").description("Company events: standups, all-hands, sprint planning, and more");
+events
+  .command("list")
+  .description("List all events")
+  .option("--type <type>", "Filter by event type")
+  .option("--enabled", "Show only enabled events")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsListCommand);
+events
+  .command("create")
+  .description("Create a new event")
+  .option("--type <type>", "Event type (standup, all_hands, sprint_planning, quarterly_review, one_on_one, retrospective, custom)")
+  .option("--name <name>", "Event name")
+  .option("--cron <expression>", "Cron expression (e.g., '0 9 * * 1-5')")
+  .option("--participants <mode>", "Participants mode (all, department, hierarchy, custom)")
+  .option("--format <format>", "Discussion format (structured, free_form, async)")
+  .option("-i, --interactive", "Interactive creation with prompts")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsCreateCommand);
+events
+  .command("show <id>")
+  .description("Show event details and recent instances")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsShowCommand);
+events
+  .command("delete <id>")
+  .description("Delete an event")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsDeleteCommand);
+events
+  .command("enable <id>")
+  .description("Enable an event")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsEnableCommand);
+events
+  .command("disable <id>")
+  .description("Disable an event")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsDisableCommand);
+events
+  .command("minutes [instance_id]")
+  .description("View meeting minutes")
+  .option("--event <id>", "Filter by event ID")
+  .option("--limit <n>", "Max entries to show", "10")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsMinutesCommand);
+events
+  .command("setup")
+  .description("Initialize default events from config")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsSetupCommand);
+events
+  .command("history")
+  .description("Show event instance history")
+  .option("--event <id>", "Filter by event ID")
+  .option("--limit <n>", "Max entries to show", "20")
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsHistoryCommand);
+// Default action: show dashboard when bare `aicib events` is run
+events
+  .option("-d, --dir <dir>", "Project directory", process.cwd())
+  .action(eventsCommand);
 
 // --- Web UI ---
 program

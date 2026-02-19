@@ -20,6 +20,8 @@ import "./project-register.js";
 import "./routing-register.js";
 import "./review-chains-register.js";
 import "./scheduler-register.js";
+import "./notifications-register.js";
+import "./events-register.js";
 
 import fs from "node:fs";
 import path from "node:path";
@@ -33,6 +35,10 @@ import {
   type SchedulerConfig,
   type Schedule,
 } from "./scheduler.js";
+import {
+  NotificationManager,
+  type NotificationsConfig,
+} from "./notifications.js";
 import {
   getSchedulerDb,
   getStateValue,
@@ -273,9 +279,29 @@ function pollOnce(
         sm.markScheduleFailed(schedule.id, errorMsg, nextRun);
       }
     }
+
+    // Process notification queue (push + digest delivery)
+    processNotifications(projectDir, config);
   } finally {
     sm?.close();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Process notification queue
+// ---------------------------------------------------------------------------
+
+function processNotifications(
+  projectDir: string,
+  config: AicibConfig
+): void {
+  const notifConfig = (config.extensions?.notifications || {}) as NotificationsConfig;
+  if (notifConfig.enabled === false) return;
+
+  // Fire-and-forget with self-contained DB lifecycle (avoids async/close race)
+  NotificationManager.processQueue(notifConfig, projectDir).catch(() => {
+    // Notification delivery is best-effort
+  });
 }
 
 // ---------------------------------------------------------------------------
