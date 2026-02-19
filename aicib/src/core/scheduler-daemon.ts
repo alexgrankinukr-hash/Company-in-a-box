@@ -20,6 +20,8 @@ import "./project-register.js";
 import "./routing-register.js";
 import "./review-chains-register.js";
 import "./scheduler-register.js";
+import "./reporting-register.js";
+import "./perf-review-register.js";
 import "./notifications-register.js";
 import "./events-register.js";
 

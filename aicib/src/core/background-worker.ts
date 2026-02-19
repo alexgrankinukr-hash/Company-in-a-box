@@ -25,6 +25,8 @@ import "./review-chains-register.js";
 import "./mcp-register.js";
 import "./safeguards-register.js";
 import "./scheduler-register.js";
+import "./reporting-register.js";
+import "./perf-review-register.js";
 import "./notifications-register.js";
 import "./events-register.js";
 

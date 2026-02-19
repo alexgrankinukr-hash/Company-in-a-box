@@ -1095,6 +1095,58 @@ Track edge cases discovered during implementation.
 **Handling:** Both methods check each key against `ALLOWED_SCHEDULE_COLUMNS` / `ALLOWED_EXECUTION_COLUMNS` sets. Unknown keys are silently skipped (matches `task-manager.ts` pattern).
 **User sees:** Nothing — only valid columns are updated.
 
+## Reporting Suite
+
+### Reporting — Invalid Delivery Method in CLI
+
+**Scenario:** User passes `--delivery email` which is not a valid delivery method.
+**Handling:** CLI validates against `VALID_DELIVERY_METHODS` before creating the report. Exits with clear error.
+**User sees:** `Error: Invalid delivery method "email". Valid: slack, file, both`
+
+### Reporting — Report Content Capture on COMPLETE
+
+**Scenario:** Agent emits `REPORT::COMPLETE id=42` in a message. Previous behavior: report status updated to completed but content field stayed empty forever.
+**Handling:** The message handler captures the full assistant message text, strips the `REPORT::COMPLETE id=N` marker, and saves the cleaned text as report content.
+**User sees:** Report content is visible in `aicib report show <id>`.
+
+### Reporting — Directive Contains Literal `<report_id>` Placeholder
+
+**Scenario:** `buildReportDirective()` emitted `REPORT::COMPLETE id=<report_id>` as a literal string. Agent would emit this literally, and the regex `id=(\d+)` wouldn't match.
+**Handling:** `buildReportDirective()` now takes a `reportId: number` parameter and injects the real ID into the directive.
+**User sees:** Report completion works end-to-end.
+
+### Reporting — listReports with limit=0
+
+**Scenario:** Config has `max_context_reports: 0` (meaning "show none"). Old code treated `0` as falsy, so no LIMIT clause was added and all reports were returned.
+**Handling:** Changed check to `filter?.limit !== undefined && filter.limit > 0`.
+**User sees:** Setting `max_context_reports: 0` correctly returns no reports in context.
+
+## Automated Performance Reviews
+
+### Auto-Reviews — Trigger Mode "periodic" Queues Task Completions
+
+**Scenario:** Config has `trigger: "periodic"` but task completions still queue auto-reviews.
+**Handling:** Message handler now checks `triggerMode` before processing task completions. Only `"task_completed"` and `"both"` queue reviews on task completion. `AUTOREVIEW::PROCESS` and `AUTOREVIEW::SKIP` markers are always honored regardless of trigger mode.
+**User sees:** Setting `trigger: periodic` prevents task-completion-based queueing.
+
+### Auto-Reviews — Quality Score Counts Non-Review Comments
+
+**Scenario:** `task_comments` contains general comments, review requests, etc. Old query counted ALL comments in the denominator but only `review_result` rows in the numerator, deflating the approval rate.
+**Handling:** Both numerator and denominator now filter on `comment_type = 'review_result'`. Pattern match uses `LIKE 'approved%'` (no leading `%`) to avoid matching "not approved".
+**User sees:** More accurate quality scores that reflect actual review outcomes.
+
+### Auto-Reviews — Concurrent Queue Claim Race Condition
+
+**Scenario:** Two concurrent workers call `processAutoReviewQueue()`. Both SELECT the same pending rows, both UPDATE to processing, both process the same reviews (duplicate reviews created).
+**Handling:** Replaced two-step SELECT+UPDATE with an atomic `db.transaction()` that claims one entry at a time. Second worker skips already-claimed entries.
+**User sees:** No duplicate auto-reviews.
+
+### Auto-Reviews — SQL Injection via windowDays
+
+**Scenario:** `windowDays` parameter interpolated directly into SQL template strings. If a non-integer value were passed, it could corrupt the query.
+**Handling:** Value is clamped to `Math.max(1, Math.min(365, Math.floor(windowDays)))` and all queries use `datetime('now', ?)` with bound parameters instead of string interpolation.
+**User sees:** No change in behavior; defense-in-depth fix.
+
 ## Notification System (Phase 3 Wave 2 Session 8)
 
 ### Notifications — Async/Close Race in Scheduler Daemon
