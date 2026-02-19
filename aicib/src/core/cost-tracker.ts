@@ -93,6 +93,15 @@ export function registerTable(def: TableDefinition): void {
   tableRegistry.push(def);
 }
 
+export const CORE_TABLE_NAMES = [
+  "cost_entries", "sessions", "agent_status", "session_data",
+  "background_jobs", "background_logs", "ceo_journal",
+];
+
+export function getRegisteredTableNames(): string[] {
+  return tableRegistry.map((t) => t.name);
+}
+
 export class CostTracker {
   private db: Database.Database;
 

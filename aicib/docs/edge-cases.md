@@ -1007,6 +1007,44 @@ Track edge cases discovered during implementation.
 **Handling:** NL fallback assigns `agent: "ceo"` — same pattern as other register files (e.g., HR NL assigns `department: "general"`). REQUEST only creates pending actions, never auto-approves. Structured SAFEGUARD:: markers are the primary interface.
 **User sees:** Nothing — pending action created for CEO. CEO can approve/reject via structured markers.
 
+## Data Export/Import (Phase 3 Wave 2 Session 9)
+
+### Export — DB Connection Leak on Error
+
+**Scenario:** Export opens state.db in read-only mode but an error occurs during table iteration (e.g., corrupted table, disk full writing JSON files).
+**Handling:** DB open and close wrapped in `try/finally`. `db.close()` always executes regardless of errors.
+**User sees:** Error message from the CLI. No leaked DB connections.
+
+### Export — Partial Export Cleanup
+
+**Scenario:** Export creates the export directory and starts writing files, but fails mid-process (e.g., disk full, tar compression fails).
+**Handling:** `exportCompanyData()` body wrapped in `try/catch` that calls `fs.rmSync(exportDir, { recursive: true })` on any error, then re-throws.
+**User sees:** Error message. No partial export directory left on disk.
+
+### Import — Tar Extraction Failure
+
+**Scenario:** Archive is corrupted or tar command fails. tempDir was created but extraction didn't complete.
+**Handling:** Tar extraction moved inside the `try` block whose `finally` always cleans up tempDir. Cleanup runs whether extraction fails, validation fails, or import fails.
+**User sees:** Error from tar command. No leftover temp directory.
+
+### Export/Import — Invalid Table Name in SQL
+
+**Scenario:** A table name in CATEGORY_TABLES somehow contains special characters (defense-in-depth, shouldn't happen with current constants).
+**Handling:** `VALID_TABLE_NAME` regex (`^[a-z0-9_]+$`) checked before any SQL construction in both export and import. Invalid names silently skipped.
+**User sees:** Nothing — invalid table names are skipped without error.
+
+### Export — Secret Pattern False Positives
+
+**Scenario:** Config key "author" or "authorized_at" or "auth_method" is redacted to `{{REDACTED}}` by the overly broad `/auth/i` pattern.
+**Handling:** Replaced `/auth/i` with specific patterns: `/auth_token/i`, `/auth_secret/i`, `/oauth_token/i`, `/oauth_secret/i`. Structural fields like "author" are preserved.
+**User sees:** Correct config export — structural fields intact, only actual secrets redacted.
+
+### Import — DB Connection Leak on Transaction Error
+
+**Scenario:** Import opens state.db writable, but the transaction fails (e.g., constraint violation, disk full).
+**Handling:** DB open and close wrapped in `try/finally` inside the data import block. `db.close()` always executes.
+**User sees:** Error message. No leaked DB connections.
+
 ### Dashboard — Tasks Table Missing
 
 **Scenario:** Database exists but `tasks` table hasn't been created yet (happens if `aicib start` was run before task management was added, or on very old DB versions).
