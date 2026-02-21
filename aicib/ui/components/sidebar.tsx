@@ -19,13 +19,13 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
-  { href: "/costs", label: "Costs", icon: DollarSign },
-  { href: "/activity", label: "Logs", icon: Activity },
+  { href: "/activity", label: "Activity", icon: Activity },
   { href: "/agents", label: "Team", icon: Users },
   { href: "/hr", label: "HR", icon: UserCog },
   { href: "/knowledge", label: "Wiki", icon: BookOpen },
   { href: "/journal", label: "Journal", icon: Notebook },
   { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -35,7 +35,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-60 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur">
       <div className="flex h-12 items-center gap-2 border-b border-sidebar-border px-5">
-        <div className="h-2 w-2 rounded-full bg-indigo-500" />
+        <div className="h-2 w-2 rounded-full bg-slate-500" />
         <span className="text-[13px] font-semibold tracking-tight text-sidebar-foreground">
           AICIB Dashboard
         </span>
@@ -56,7 +56,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-1.5 text-[13px] transition-colors",
                 isActive
-                  ? "border border-indigo-200 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                  ? "border border-border bg-muted/70 text-foreground font-medium"
                   : "border border-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >

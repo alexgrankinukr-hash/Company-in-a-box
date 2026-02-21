@@ -5,6 +5,7 @@ import { Download } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { BarChart } from "@/components/bar-chart";
 import { StatCard } from "@/components/stat-card";
+import { PageGuide } from "@/components/page-guide";
 import { Button } from "@/components/ui/button";
 import { useSSE } from "@/components/sse-provider";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
@@ -155,6 +156,14 @@ export default function CostsPage() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">Costs</h1>
       </div>
+      <p className="-mt-2 mb-3 text-[12px] text-muted-foreground">
+        Financial usage only: token volume and estimated spend.
+      </p>
+      <PageGuide
+        useFor="tracking spend, token usage, and budget health over time."
+        notFor="reviewing execution events or operational activity details."
+        goTo="Activity for timeline-based job and agent outputs."
+      />
 
       {error ? (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
@@ -238,6 +247,9 @@ export default function CostsPage() {
           defaultPageSize={20}
           getRowKey={(row) => String(row.id)}
         />
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Not shown here: job-by-job execution events and agent status transitions.
+        </p>
       </div>
     </div>
   );

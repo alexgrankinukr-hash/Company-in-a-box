@@ -1,6 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
-import { BriefInput } from "@/components/brief-input";
 import { SSEProvider } from "@/components/sse-provider";
 
 export default function DashboardLayout({
@@ -14,7 +13,6 @@ export default function DashboardLayout({
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Topbar />
-          <BriefInput />
           <main className="flex flex-1 flex-col overflow-hidden">
             {children}
           </main>

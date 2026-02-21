@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AgentPanel } from "@/components/agent-panel";
+import { OrgChart } from "@/components/org-chart";
 import { getAgentColorClasses } from "@/lib/agent-colors";
 import { cn } from "@/lib/utils";
 import { useSSE } from "@/components/sse-provider";
@@ -44,6 +45,7 @@ export default function AgentsPage() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"cards" | "org">("cards");
 
   const { lastEvent } = useSSE();
 
@@ -103,7 +105,33 @@ export default function AgentsPage() {
   return (
     <>
       <div className="flex h-full flex-col overflow-y-auto px-5 py-4">
-        <h1 className="mb-4 text-lg font-semibold tracking-tight">Team</h1>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h1 className="text-lg font-semibold tracking-tight">Team</h1>
+          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+            <button
+              onClick={() => setView("cards")}
+              className={cn(
+                "rounded px-2.5 py-1 text-[12px] transition-colors",
+                view === "cards"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50"
+              )}
+            >
+              Cards
+            </button>
+            <button
+              onClick={() => setView("org")}
+              className={cn(
+                "rounded px-2.5 py-1 text-[12px] transition-colors",
+                view === "org"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50"
+              )}
+            >
+              Org Chart
+            </button>
+          </div>
+        </div>
 
         {error ? (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
@@ -111,10 +139,16 @@ export default function AgentsPage() {
           </div>
         ) : null}
 
-        {loading ? (
+        {view === "org" ? (
+          <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border/80 bg-card">
+            <OrgChart />
+          </div>
+        ) : loading ? (
           <p className="text-[13px] text-muted-foreground">Loading team...</p>
         ) : agents.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">No agents configured.</p>
+          <p className="text-[13px] text-muted-foreground">
+            No agents configured.
+          </p>
         ) : (
           <div className="space-y-5">
             {grouped.ceo ? (
@@ -145,7 +179,7 @@ export default function AgentsPage() {
         agent={currentSelected}
         logs={selectedLogs}
         agents={agents}
-        open={!!currentSelected}
+        open={view === "cards" && !!currentSelected}
         onClose={() => setSelectedAgent(null)}
       />
     </>

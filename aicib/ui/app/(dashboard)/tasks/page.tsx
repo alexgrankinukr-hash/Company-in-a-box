@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, MessageSquare } from "lucide-react";
 import {
   Sheet,
@@ -62,10 +63,26 @@ interface TaskListPayload {
   filters: {
     assignees: string[];
     departments: string[];
+    projects: string[];
   };
 }
 
 export default function TasksPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full items-center justify-center px-5 py-4 text-[13px] text-muted-foreground">
+          Loading tasks...
+        </div>
+      }
+    >
+      <TasksPageContent />
+    </Suspense>
+  );
+}
+
+function TasksPageContent() {
+  const searchParams = useSearchParams();
   const [payload, setPayload] = useState<TaskListPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,8 +94,24 @@ export default function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState("all");
 
   const { lastEvent } = useSSE();
+
+  const projectOptions = useMemo(() => {
+    const values = new Set(payload?.filters.projects || []);
+    if (projectFilter !== "all") {
+      values.add(projectFilter);
+    }
+
+    return [
+      { value: "all", label: "All" },
+      ...Array.from(values).map((project) => ({
+        value: project,
+        label: project,
+      })),
+    ];
+  }, [payload?.filters.projects, projectFilter]);
 
   const loadTasks = useCallback(async () => {
     setError(null);
@@ -88,6 +121,7 @@ export default function TasksPage() {
         priority: priorityFilter,
         assignee: assigneeFilter,
         department: departmentFilter,
+        project: projectFilter,
         pageSize: "200",
       });
 
@@ -103,7 +137,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [assigneeFilter, departmentFilter, priorityFilter, statusFilter]);
+  }, [assigneeFilter, departmentFilter, priorityFilter, projectFilter, statusFilter]);
 
   const loadTaskDetail = useCallback(async (taskId: number) => {
     setDetailLoading(true);
@@ -125,6 +159,15 @@ export default function TasksPage() {
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
+
+  useEffect(() => {
+    const projectParam = searchParams.get("project");
+    if (projectParam && projectParam.trim()) {
+      setProjectFilter(projectParam.trim());
+    } else {
+      setProjectFilter("all");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (selectedTaskId) {
@@ -229,12 +272,19 @@ export default function TasksPage() {
                   })),
                 ],
               },
+              {
+                key: "project",
+                label: "Project",
+                value: projectFilter,
+                options: projectOptions,
+              },
             ]}
             onChange={(key, value) => {
               if (key === "status") setStatusFilter(value);
               if (key === "priority") setPriorityFilter(value);
               if (key === "assignee") setAssigneeFilter(value);
               if (key === "department") setDepartmentFilter(value);
+              if (key === "project") setProjectFilter(value);
             }}
           />
         </div>

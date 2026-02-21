@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
+import { PageGuide } from "@/components/page-guide";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDurationMs, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,6 +17,10 @@ interface Project {
   total_phases: number;
   completed_phases: number;
   phases_done?: number;
+  task_total?: number;
+  task_open?: number;
+  task_in_progress?: number;
+  task_done?: number;
   total_cost_usd: number;
   total_turns: number;
   total_duration_ms: number;
@@ -87,6 +93,11 @@ export default function ProjectsPage() {
   return (
     <div className="flex h-full flex-col overflow-y-auto px-5 py-4">
       <h1 className="mb-4 text-lg font-semibold tracking-tight">Projects</h1>
+      <PageGuide
+        useFor="tracking project-level progress, phase completion, and high-level delivery status."
+        notFor="managing individual task-level execution details."
+        goTo="Tasks to review or work through specific project tasks."
+      />
 
       {error ? (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
@@ -142,8 +153,22 @@ export default function ProjectsPage() {
                     <span>Turns: {project.total_turns}</span>
                     <span>Duration: {formatDurationMs(project.total_duration_ms)}</span>
                   </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                    <span>Tasks: {project.task_total ?? 0}</span>
+                    <span>Open: {project.task_open ?? 0}</span>
+                    <span>In Progress: {project.task_in_progress ?? 0}</span>
+                    <span>Done: {project.task_done ?? 0}</span>
+                  </div>
                   <div className="mt-2 h-1.5 rounded bg-muted">
                     <div className="h-1.5 rounded bg-indigo-500" style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="mt-2">
+                    <Link
+                      href={`/tasks?project=${encodeURIComponent(project.title)}`}
+                      className="text-[12px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      View related tasks
+                    </Link>
                   </div>
 
                   {isOpen ? (
@@ -166,6 +191,14 @@ export default function ProjectsPage() {
                               <span>Cost: {formatCurrency(phase.cost_usd)}</span>
                               <span>Turns: {phase.num_turns}</span>
                               <span>Duration: {formatDurationMs(phase.duration_ms)}</span>
+                            </div>
+                            <div className="mt-1">
+                              <Link
+                                href={`/tasks?project=${encodeURIComponent(project.title)}`}
+                                className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                              >
+                                View related tasks
+                              </Link>
                             </div>
                             {phase.phase_summary ? (
                               <p className="mt-1 text-[12px] text-muted-foreground">{phase.phase_summary}</p>
@@ -200,8 +233,17 @@ export default function ProjectsPage() {
                 <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
                   <span>Phases: {project.completed_phases}/{project.total_phases}</span>
                   <span>Cost: {formatCurrency(project.total_cost_usd)}</span>
+                  <span>Tasks: {project.task_total ?? 0}</span>
                   <span>Duration: {formatDurationMs(project.total_duration_ms)}</span>
                   <span>Updated: {formatDateTime(project.updated_at)}</span>
+                </div>
+                <div className="mt-2">
+                  <Link
+                    href={`/tasks?project=${encodeURIComponent(project.title)}`}
+                    className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  >
+                    View related tasks
+                  </Link>
                 </div>
               </div>
             ))

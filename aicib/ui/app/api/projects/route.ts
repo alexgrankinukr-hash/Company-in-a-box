@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   try {
     const db = getDb();
     const { searchParams } = new URL(request.url);
+    const hasTasks = tableExists(db, "tasks");
 
     if (!tableExists(db, "projects")) {
       return NextResponse.json({
@@ -34,7 +35,27 @@ export async function GET(request: Request) {
       db,
       "projects",
       `SELECT p.*,
-        (SELECT COUNT(*) FROM project_phases WHERE project_id = p.id AND status = 'completed') as phases_done
+        (SELECT COUNT(*) FROM project_phases WHERE project_id = p.id AND status = 'completed') as phases_done,
+        ${
+          hasTasks
+            ? "(SELECT COUNT(*) FROM tasks t WHERE LOWER(TRIM(COALESCE(t.project, ''))) = LOWER(TRIM(COALESCE(p.title, ''))))"
+            : "0"
+        } as task_total,
+        ${
+          hasTasks
+            ? "(SELECT COUNT(*) FROM tasks t WHERE LOWER(TRIM(COALESCE(t.project, ''))) = LOWER(TRIM(COALESCE(p.title, ''))) AND t.status NOT IN ('done', 'cancelled'))"
+            : "0"
+        } as task_open,
+        ${
+          hasTasks
+            ? "(SELECT COUNT(*) FROM tasks t WHERE LOWER(TRIM(COALESCE(t.project, ''))) = LOWER(TRIM(COALESCE(p.title, ''))) AND t.status IN ('in_progress', 'in_review'))"
+            : "0"
+        } as task_in_progress,
+        ${
+          hasTasks
+            ? "(SELECT COUNT(*) FROM tasks t WHERE LOWER(TRIM(COALESCE(t.project, ''))) = LOWER(TRIM(COALESCE(p.title, ''))) AND t.status = 'done')"
+            : "0"
+        } as task_done
       FROM projects p
       ${whereClause}
       ORDER BY

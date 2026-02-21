@@ -51,6 +51,11 @@ export async function GET(request: Request) {
           done: 0,
           cancelled: 0,
         },
+        filters: {
+          assignees: [],
+          departments: [],
+          projects: [],
+        },
         pagination: {
           page: 1,
           pageSize: 50,
@@ -64,6 +69,7 @@ export async function GET(request: Request) {
     const priority = searchParams.get("priority") || "all";
     const assignee = searchParams.get("assignee") || "all";
     const department = searchParams.get("department") || "all";
+    const project = searchParams.get("project") || "all";
 
     const whereParts: string[] = [];
     const params: unknown[] = [];
@@ -89,6 +95,11 @@ export async function GET(request: Request) {
     if (department !== "all") {
       whereParts.push("COALESCE(t.department, '') = ?");
       params.push(department === "none" ? "" : department);
+    }
+
+    if (project !== "all") {
+      whereParts.push("LOWER(TRIM(COALESCE(t.project, ''))) = LOWER(TRIM(?))");
+      params.push(project === "none" ? "" : project);
     }
 
     const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
@@ -158,12 +169,21 @@ export async function GET(request: Request) {
       .map((row) => row.department)
       .filter((value): value is string => !!value);
 
+    const projects = safeAll<{ project: string | null }>(
+      db,
+      "tasks",
+      "SELECT DISTINCT project FROM tasks ORDER BY project"
+    )
+      .map((row) => row.project)
+      .filter((value): value is string => !!value);
+
     return NextResponse.json({
       tasks,
       statusCounts,
       filters: {
         assignees,
         departments,
+        projects,
       },
       pagination: {
         page: pageInfo.page,

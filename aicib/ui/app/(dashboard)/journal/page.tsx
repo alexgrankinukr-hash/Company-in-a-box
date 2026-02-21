@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FilterBar } from "@/components/filter-bar";
 import { Badge } from "@/components/ui/badge";
+import { PageGuide } from "@/components/page-guide";
 import { formatCurrency, formatDateTime, formatDurationMs } from "@/lib/format";
 
 interface JournalPayload {
@@ -125,6 +126,11 @@ export default function JournalPage() {
   return (
     <div className="flex h-full flex-col overflow-y-auto px-5 py-4">
       <h1 className="mb-4 text-lg font-semibold tracking-tight">Journal</h1>
+      <PageGuide
+        useFor="historical decisions, lessons learned, and session-level strategic summaries."
+        notFor="daily execution monitoring or current project task tracking."
+        goTo="Projects for project progress, and Activity for real-time execution timeline."
+      />
 
       {error ? (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">

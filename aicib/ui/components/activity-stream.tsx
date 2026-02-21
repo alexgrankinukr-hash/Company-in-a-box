@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAgentColorClasses } from "@/lib/agent-colors";
 import { useSSE } from "@/components/sse-provider";
+import { FilterBar } from "@/components/filter-bar";
 import { cn, formatRelativeTime } from "@/lib/utils";
 
 interface LogEntry {
@@ -16,6 +17,8 @@ interface LogEntry {
 
 export function ActivityStream() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [agentFilter, setAgentFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const { lastEvent } = useSSE();
 
   useEffect(() => {
@@ -45,6 +48,46 @@ export function ActivityStream() {
     }
   }, [lastEvent]);
 
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const matchesAgent =
+        agentFilter === "all" ? true : (log.agent_role || "system") === agentFilter;
+      const matchesType =
+        typeFilter === "all" ? true : (log.message_type || "unknown") === typeFilter;
+      return matchesAgent && matchesType;
+    });
+  }, [agentFilter, logs, typeFilter]);
+
+  const filterOptions = useMemo(() => {
+    const agents = Array.from(
+      new Set(logs.map((log) => log.agent_role || "system"))
+    ).sort();
+    const messageTypes = Array.from(
+      new Set(logs.map((log) => log.message_type || "unknown"))
+    ).sort();
+
+    return [
+      {
+        key: "agent",
+        label: "Agent",
+        value: agentFilter,
+        options: [
+          { value: "all", label: "All" },
+          ...agents.map((agent) => ({ value: agent, label: agent })),
+        ],
+      },
+      {
+        key: "type",
+        label: "Type",
+        value: typeFilter,
+        options: [
+          { value: "all", label: "All" },
+          ...messageTypes.map((type) => ({ value: type, label: type })),
+        ],
+      },
+    ];
+  }, [agentFilter, logs, typeFilter]);
+
   if (logs.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -56,9 +99,24 @@ export function ActivityStream() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-background px-4 py-2">
-      <div className="space-y-1">
-        {logs.map((log) => {
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="border-b border-border/70 px-3 py-2">
+        <FilterBar
+          filters={filterOptions}
+          onChange={(key, value) => {
+            if (key === "agent") setAgentFilter(value);
+            if (key === "type") setTypeFilter(value);
+          }}
+        />
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-2">
+        <div className="space-y-1">
+          {filteredLogs.length === 0 ? (
+            <p className="py-2 text-[12px] text-muted-foreground">
+              No activity matches the current filters.
+            </p>
+          ) : null}
+          {filteredLogs.map((log) => {
           const colors = getAgentColorClasses(log.agent_role);
           const relTime = formatRelativeTime(log.timestamp);
 
@@ -97,7 +155,8 @@ export function ActivityStream() {
               </div>
             </div>
           );
-        })}
+          })}
+        </div>
       </div>
     </div>
   );
