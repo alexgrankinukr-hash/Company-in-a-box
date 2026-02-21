@@ -47,7 +47,7 @@ export function BriefInput({ disabled }: BriefInputProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex shrink-0 items-center gap-2 border-b border-border bg-surface-raised px-4 py-2.5"
+      className="flex shrink-0 items-center gap-2 border-b border-border/70 bg-surface-raised/90 px-4 py-2.5 backdrop-blur"
     >
       <input
         value={directive}
@@ -55,9 +55,9 @@ export function BriefInput({ disabled }: BriefInputProps) {
         placeholder="What should the team work on?"
         disabled={sending || disabled}
         className={cn(
-          "flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground/40 outline-none",
-          "rounded-md border border-transparent px-3 py-2",
-          "focus:border-agent-ceo/40 focus:ring-1 focus:ring-agent-ceo/30",
+          "flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground outline-none",
+          "rounded-md border border-border/70 px-3 py-2",
+          "focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200",
           disabled && "cursor-not-allowed opacity-50"
         )}
       />
@@ -65,10 +65,10 @@ export function BriefInput({ disabled }: BriefInputProps) {
         type="submit"
         disabled={!hasText || sending || disabled}
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors",
           hasText && !disabled
-            ? "bg-agent-ceo text-white hover:bg-agent-ceo/80"
-            : "bg-transparent text-muted-foreground/30"
+            ? "border-indigo-500 bg-indigo-600 text-white hover:bg-indigo-500"
+            : "border-border bg-background text-muted-foreground/40"
         )}
       >
         <ArrowUp className="h-4 w-4" />

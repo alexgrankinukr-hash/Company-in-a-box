@@ -32,8 +32,8 @@ export function SessionBanner({ onSessionStarted }: SessionBannerProps) {
   }
 
   return (
-    <div className="flex shrink-0 items-center justify-between border-b border-amber-500/20 bg-amber-500/5 px-4 py-2">
-      <span className="text-[13px] text-amber-400/80">No active session</span>
+    <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/65 px-4 py-2">
+      <span className="text-[13px] text-foreground/80">No active session</span>
       <div className="flex items-center gap-2">
         {error && (
           <span className="text-[11px] text-destructive">{error}</span>
@@ -43,7 +43,7 @@ export function SessionBanner({ onSessionStarted }: SessionBannerProps) {
           disabled={starting}
           size="sm"
           variant="ghost"
-          className="h-7 gap-1.5 text-[13px] text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
+          className="h-7 gap-1.5 text-[13px] text-foreground/80 hover:bg-background hover:text-foreground"
         >
           {starting ? (
             <>

@@ -31,14 +31,16 @@ export function ActivityStream() {
 
   useEffect(() => {
     if (lastEvent?.type === "new_logs" && Array.isArray(lastEvent.data)) {
-      setLogs((prev) => {
-        const newEntries = lastEvent.data as LogEntry[];
-        const existingIds = new Set(prev.map((l) => l.id));
-        const unique = newEntries.filter((l) => !existingIds.has(l.id));
-        if (unique.length === 0) return prev;
-        const merged = [...prev, ...unique];
-        merged.sort((a, b) => b.id - a.id);
-        return merged.slice(0, 100);
+      const newEntries = lastEvent.data as LogEntry[];
+      queueMicrotask(() => {
+        setLogs((prev) => {
+          const existingIds = new Set(prev.map((l) => l.id));
+          const unique = newEntries.filter((l) => !existingIds.has(l.id));
+          if (unique.length === 0) return prev;
+          const merged = [...prev, ...unique];
+          merged.sort((a, b) => b.id - a.id);
+          return merged.slice(0, 100);
+        });
       });
     }
   }, [lastEvent]);
@@ -54,8 +56,8 @@ export function ActivityStream() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="px-4">
+    <div className="flex-1 overflow-y-auto bg-background px-4 py-2">
+      <div className="space-y-1">
         {logs.map((log) => {
           const colors = getAgentColorClasses(log.agent_role);
           const relTime = formatRelativeTime(log.timestamp);
@@ -63,7 +65,7 @@ export function ActivityStream() {
           return (
             <div
               key={log.id}
-              className="flex gap-3 border-b border-border py-2.5 last:border-0"
+              className="flex gap-3 rounded-md border border-border/60 bg-card px-3 py-2.5 shadow-xs"
             >
               <div
                 className={cn(

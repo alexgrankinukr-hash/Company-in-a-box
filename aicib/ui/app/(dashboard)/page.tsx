@@ -40,7 +40,12 @@ export default function DashboardPage() {
       {sessionActive === false && (
         <SessionBanner onSessionStarted={() => setSessionActive(true)} />
       )}
-      <OrgChart />
+      <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
+        <h1 className="mb-3 text-lg font-semibold tracking-tight">Home</h1>
+        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border/80 bg-card">
+          <OrgChart />
+        </div>
+      </div>
     </div>
   );
 }

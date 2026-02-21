@@ -35,11 +35,11 @@ export const AgentNode = forwardRef<HTMLDivElement, AgentNodeProps>(
       >
         <div
           className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full transition-all",
+            "flex h-12 w-12 items-center justify-center rounded-full border bg-card shadow-sm transition-all",
             status === "working" &&
               "animate-[glow-ring_2s_ease-in-out_infinite]",
-            status === "error" && "ring-2 ring-red-500/60",
-            status === "stopped" && "opacity-40"
+            status === "error" && "ring-2 ring-red-300",
+            status === "stopped" && "opacity-50"
           )}
           style={
             status === "working"
@@ -51,8 +51,8 @@ export const AgentNode = forwardRef<HTMLDivElement, AgentNodeProps>(
         </div>
         <span
           className={cn(
-            "text-[11px] text-muted-foreground group-hover:text-foreground transition-colors",
-            status === "stopped" && "opacity-40"
+            "text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors",
+            status === "stopped" && "opacity-60"
           )}
         >
           {name}

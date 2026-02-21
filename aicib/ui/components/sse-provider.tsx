@@ -6,7 +6,6 @@ import {
   useState,
   useEffect,
   useRef,
-  useCallback,
   type ReactNode,
 } from "react";
 
@@ -31,42 +30,47 @@ export function SSEProvider({ children }: { children: ReactNode }) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const connect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-
-    const es = new EventSource("/api/stream");
-    eventSourceRef.current = es;
-
-    es.onopen = () => {
-      setConnected(true);
-    };
-
-    es.onmessage = (event) => {
-      try {
-        const parsed = JSON.parse(event.data) as SSEEvent;
-        setLastEvent(parsed);
-      } catch {
-        // Ignore malformed events
-      }
-    };
-
-    es.onerror = () => {
-      setConnected(false);
-      es.close();
-      eventSourceRef.current = null;
-
-      reconnectTimerRef.current = setTimeout(() => {
-        connect();
-      }, 3000);
-    };
-  }, []);
-
   useEffect(() => {
+    let disposed = false;
+
+    const connect = () => {
+      if (disposed) return;
+
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      const es = new EventSource("/api/stream");
+      eventSourceRef.current = es;
+
+      es.onopen = () => {
+        setConnected(true);
+      };
+
+      es.onmessage = (event) => {
+        try {
+          const parsed = JSON.parse(event.data) as SSEEvent;
+          setLastEvent(parsed);
+        } catch {
+          // Ignore malformed events
+        }
+      };
+
+      es.onerror = () => {
+        setConnected(false);
+        es.close();
+        eventSourceRef.current = null;
+
+        reconnectTimerRef.current = setTimeout(() => {
+          connect();
+        }, 3000);
+      };
+    };
+
     connect();
 
     return () => {
+      disposed = true;
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
       }
@@ -74,7 +78,7 @@ export function SSEProvider({ children }: { children: ReactNode }) {
         eventSourceRef.current.close();
       }
     };
-  }, [connect]);
+  }, []);
 
   return (
     <SSEContext.Provider value={{ lastEvent, connected }}>

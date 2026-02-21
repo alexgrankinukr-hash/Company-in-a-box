@@ -20,6 +20,7 @@ interface Agent {
   enabled: boolean;
   status: string;
   currentTask: string | null;
+  displayName?: string | null;
 }
 
 interface LogEntry {
@@ -102,9 +103,7 @@ export function OrgChart() {
     };
   }, [agents]);
 
-  // Measurement function stored in ref to avoid stale closures
-  const measureLinesRef = useRef<() => void>(() => {});
-  measureLinesRef.current = () => {
+  const measureLines = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
     const containerRect = container.getBoundingClientRect();
@@ -128,7 +127,7 @@ export function OrgChart() {
       });
     });
     setLines(newLines);
-  };
+  }, [edges]);
 
   // Fetch initial data
   useEffect(() => {
@@ -212,17 +211,17 @@ export function OrgChart() {
 
   // Measure lines after DOM updates
   useLayoutEffect(() => {
-    measureLinesRef.current();
-  }, [edges]);
+    measureLines();
+  }, [measureLines]);
 
   // Re-measure on resize
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const observer = new ResizeObserver(() => measureLinesRef.current());
+    const observer = new ResizeObserver(() => measureLines());
     observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [measureLines]);
 
   // Keep selectedAgent in sync with latest agent data
   const currentSelectedAgent = selectedAgent
@@ -259,7 +258,7 @@ export function OrgChart() {
     <>
       <div
         ref={containerRef}
-        className="relative flex flex-1 flex-col items-center justify-center gap-16 px-8"
+        className="relative flex flex-1 flex-col items-center justify-center gap-16 bg-background px-8 py-6"
       >
         {/* SVG overlay for connection lines and pulses */}
         <svg className="pointer-events-none absolute inset-0 h-full w-full">
@@ -270,7 +269,7 @@ export function OrgChart() {
               y1={line.y1}
               x2={line.x2}
               y2={line.y2}
-              stroke="#333"
+              stroke="#d1d5db"
               strokeWidth={1.5}
             />
           ))}

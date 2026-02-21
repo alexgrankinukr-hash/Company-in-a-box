@@ -33,11 +33,11 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-56 flex-col border-r border-border bg-sidebar">
-      <div className="flex h-12 items-center gap-2 border-b border-border px-5">
-        <div className="h-2 w-2 rounded-full bg-agent-ceo" />
-        <span className="text-[13px] font-semibold tracking-tight text-foreground">
-          AICIB
+    <aside className="flex h-full w-60 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur">
+      <div className="flex h-12 items-center gap-2 border-b border-sidebar-border px-5">
+        <div className="h-2 w-2 rounded-full bg-indigo-500" />
+        <span className="text-[13px] font-semibold tracking-tight text-sidebar-foreground">
+          AICIB Dashboard
         </span>
       </div>
 
@@ -56,8 +56,8 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-1.5 text-[13px] transition-colors",
                 isActive
-                  ? "border-l-2 border-agent-ceo bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  : "border-l-2 border-transparent text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  ? "border border-indigo-200 bg-indigo-50 text-indigo-700 font-medium shadow-sm"
+                  : "border border-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
               <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -67,8 +67,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-border px-5 py-3">
-        <p className="text-[11px] text-muted-foreground/40">v0.1.0</p>
+      <div className="border-t border-sidebar-border px-5 py-3">
+        <p className="text-[11px] text-sidebar-foreground/45">v0.1.0</p>
       </div>
     </aside>
   );
