@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
-import { getProjectDir } from "@/lib/config";
+import { tryGetProjectDir } from "@/lib/config";
 import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const projectDir = getProjectDir();
+    const projectDir = tryGetProjectDir();
+    if (!projectDir) {
+      return NextResponse.json(
+        {
+          error:
+            "No active business selected. Create or import a business first.",
+        },
+        { status: 400 }
+      );
+    }
+
     const db = getDb();
 
     // Check for active session
@@ -80,8 +90,7 @@ export async function POST(request: Request) {
       message: "Brief submitted in background",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

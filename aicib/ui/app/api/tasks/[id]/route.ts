@@ -10,6 +10,8 @@ export async function GET(
 ) {
   try {
     const db = getDb();
+    const hasTaskBlockers = tableExists(db, "task_blockers");
+    const hasTaskComments = tableExists(db, "task_comments");
     const { id } = await params;
     const taskId = Number.parseInt(id, 10);
 
@@ -21,12 +23,19 @@ export async function GET(
       return NextResponse.json({ error: "Task table not found" }, { status: 404 });
     }
 
+    const blockerCountExpr = hasTaskBlockers
+      ? "(SELECT COUNT(*) FROM task_blockers WHERE task_id = t.id)"
+      : "0";
+    const commentCountExpr = hasTaskComments
+      ? "(SELECT COUNT(*) FROM task_comments WHERE task_id = t.id)"
+      : "0";
+
     const task = safeGet<Record<string, unknown>>(
       db,
       "tasks",
       `SELECT t.*,
-        (SELECT COUNT(*) FROM task_blockers WHERE task_id = t.id) as blocker_count,
-        (SELECT COUNT(*) FROM task_comments WHERE task_id = t.id) as comment_count
+        ${blockerCountExpr} as blocker_count,
+        ${commentCountExpr} as comment_count
       FROM tasks t
       WHERE t.id = ?`,
       [taskId]

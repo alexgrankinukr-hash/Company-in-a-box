@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   try {
     const db = getDb();
     const { searchParams } = new URL(request.url);
+    const hasProjectPhases = tableExists(db, "project_phases");
     const hasTasks = tableExists(db, "tasks");
 
     if (!tableExists(db, "projects")) {
@@ -31,11 +32,15 @@ export async function GET(request: Request) {
         params
       )?.count ?? 0;
 
+    const phasesDoneExpr = hasProjectPhases
+      ? "(SELECT COUNT(*) FROM project_phases WHERE project_id = p.id AND status = 'completed')"
+      : "0";
+
     const entries = safeAll<Record<string, unknown>>(
       db,
       "projects",
       `SELECT p.*,
-        (SELECT COUNT(*) FROM project_phases WHERE project_id = p.id AND status = 'completed') as phases_done,
+        ${phasesDoneExpr} as phases_done,
         ${
           hasTasks
             ? "(SELECT COUNT(*) FROM tasks t WHERE LOWER(TRIM(COALESCE(t.project, ''))) = LOWER(TRIM(COALESCE(p.title, ''))))"

@@ -39,6 +39,27 @@ function compareValues(a: unknown, b: unknown): number {
   return aText.localeCompare(bText);
 }
 
+function defaultRowKey<T extends object>(row: T, index: number): string {
+  const record = row as Record<string, unknown>;
+  const preferred =
+    record.id ??
+    record.uuid ??
+    record.key ??
+    record.slug ??
+    record.name ??
+    record.title;
+  if (preferred !== undefined && preferred !== null && String(preferred) !== "") {
+    return String(preferred);
+  }
+
+  const timestamp = record.created_at ?? record.updated_at ?? record.timestamp;
+  if (timestamp !== undefined && timestamp !== null && String(timestamp) !== "") {
+    return `${String(timestamp)}-${index}`;
+  }
+
+  return `row-${index}`;
+}
+
 export function DataTable<T extends object>({
   rows,
   columns,
@@ -146,7 +167,7 @@ export function DataTable<T extends object>({
                   key={
                     getRowKey
                       ? getRowKey(row, index)
-                      : `${index}-${JSON.stringify(row)}`
+                      : defaultRowKey(row, index)
                   }
                   className="border-b border-border/60 last:border-0"
                 >

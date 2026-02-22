@@ -192,7 +192,9 @@ export default function SettingsPage() {
           columns={mcpColumns}
           emptyMessage={loading ? "Loading integrations..." : "No integrations configured"}
           defaultPageSize={10}
-          getRowKey={(row) => String(row.server_name || Math.random())}
+          getRowKey={(row, index) =>
+            String(row.server_name || row.added_at || row.last_used || `mcp-${index}`)
+          }
         />
       </section>
 

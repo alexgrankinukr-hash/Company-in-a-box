@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { safeAll, tableExists } from "@/lib/api-helpers";
+import { safeAll, safeGet, tableExists } from "@/lib/api-helpers";
 
 export type DashboardChannelKind = "general" | "role" | "department";
 
@@ -49,6 +49,15 @@ interface LogRow {
 }
 
 const CHANNEL_PREFIX = /^\s*\[channel:([a-z0-9_-]+)\]\s*/i;
+const CHANNEL_THREAD_CACHE_TTL_MS = 1500;
+
+interface ChannelThreadCacheEntry {
+  cacheKey: string;
+  cachedAtMs: number;
+  entries: ChannelThreadEntry[];
+}
+
+let channelThreadCache: ChannelThreadCacheEntry | null = null;
 
 export const DASHBOARD_CHANNELS: DashboardChannelDefinition[] = [
   {
@@ -148,11 +157,41 @@ export function resolveFallbackChannelByRole(agentRole: string | null | undefine
   return ROLE_CHANNEL_MAP[agentRole] || "general";
 }
 
+function getMaxId(db: Database.Database, tableName: string): number {
+  return (
+    safeGet<{ max_id: number }>(
+      db,
+      tableName,
+      `SELECT COALESCE(MAX(id), 0) as max_id FROM ${tableName}`
+    )?.max_id ?? 0
+  );
+}
+
+function getChannelThreadCacheKey(
+  db: Database.Database,
+  hasJobs: boolean,
+  hasLogs: boolean
+): string {
+  const jobsMaxId = hasJobs ? getMaxId(db, "background_jobs") : 0;
+  const logsMaxId = hasLogs ? getMaxId(db, "background_logs") : 0;
+  return `jobs:${hasJobs ? 1 : 0}:${jobsMaxId}|logs:${hasLogs ? 1 : 0}:${logsMaxId}`;
+}
+
 export function buildChannelThreadEntries(db: Database.Database): ChannelThreadEntry[] {
   const hasJobs = tableExists(db, "background_jobs");
   const hasLogs = tableExists(db, "background_logs");
 
   if (!hasJobs && !hasLogs) return [];
+
+  const now = Date.now();
+  const cacheKey = getChannelThreadCacheKey(db, hasJobs, hasLogs);
+  if (
+    channelThreadCache &&
+    channelThreadCache.cacheKey === cacheKey &&
+    now - channelThreadCache.cachedAtMs <= CHANNEL_THREAD_CACHE_TTL_MS
+  ) {
+    return channelThreadCache.entries;
+  }
 
   const jobs = hasJobs
     ? safeAll<JobRow>(
@@ -223,6 +262,12 @@ export function buildChannelThreadEntries(db: Database.Database): ChannelThreadE
     if (timeA !== timeB) return timeA - timeB;
     return a.id.localeCompare(b.id);
   });
+
+  channelThreadCache = {
+    cacheKey,
+    cachedAtMs: now,
+    entries,
+  };
 
   return entries;
 }

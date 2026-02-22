@@ -39,6 +39,8 @@ export async function GET(request: Request) {
   try {
     const db = getDb();
     const { searchParams } = new URL(request.url);
+    const hasTaskBlockers = tableExists(db, "task_blockers");
+    const hasTaskComments = tableExists(db, "task_comments");
 
     if (!tableExists(db, "tasks")) {
       return NextResponse.json({
@@ -111,12 +113,19 @@ export async function GET(request: Request) {
         .prepare(`SELECT COUNT(*) as count FROM tasks t ${whereClause}`)
         .get(...params) as { count: number })?.count ?? 0;
 
+    const blockerCountExpr = hasTaskBlockers
+      ? "(SELECT COUNT(*) FROM task_blockers WHERE task_id = t.id)"
+      : "0";
+    const commentCountExpr = hasTaskComments
+      ? "(SELECT COUNT(*) FROM task_comments WHERE task_id = t.id)"
+      : "0";
+
     const tasks = safeAll<TaskRow>(
       db,
       "tasks",
       `SELECT t.*,
-        (SELECT COUNT(*) FROM task_blockers WHERE task_id = t.id) as blocker_count,
-        (SELECT COUNT(*) FROM task_comments WHERE task_id = t.id) as comment_count
+        ${blockerCountExpr} as blocker_count,
+        ${commentCountExpr} as comment_count
       FROM tasks t
       ${whereClause}
       ORDER BY

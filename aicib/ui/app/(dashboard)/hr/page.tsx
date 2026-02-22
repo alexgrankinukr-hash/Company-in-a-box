@@ -261,7 +261,9 @@ export default function HrPage() {
             columns={reviewColumns}
             emptyMessage={loading ? "Loading reviews..." : "No reviews found"}
             defaultPageSize={20}
-            getRowKey={(row) => String(row.id || row.created_at || Math.random())}
+            getRowKey={(row, index) =>
+              String(row.id || row.created_at || row.agent_role || `review-${index}`)
+            }
           />
         </TabsContent>
 
@@ -271,7 +273,9 @@ export default function HrPage() {
             columns={onboardingColumns}
             emptyMessage={loading ? "Loading onboarding records..." : "No onboarding records"}
             defaultPageSize={20}
-            getRowKey={(row) => String(row.agent_role || row.id || Math.random())}
+            getRowKey={(row, index) =>
+              String(row.agent_role || row.id || row.phase_started_at || `onboarding-${index}`)
+            }
           />
         </TabsContent>
 
@@ -300,7 +304,9 @@ export default function HrPage() {
             columns={plansColumns}
             emptyMessage={loading ? "Loading plans..." : "No improvement plans"}
             defaultPageSize={20}
-            getRowKey={(row) => String(row.id || row.created_at || Math.random())}
+            getRowKey={(row, index) =>
+              String(row.id || row.created_at || row.agent_role || `plan-${index}`)
+            }
           />
         </TabsContent>
       </Tabs>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { SessionBanner } from "@/components/session-banner";
@@ -15,6 +15,10 @@ import {
 import { ChannelComposer } from "@/components/home/channel-composer";
 import { ContextPanel } from "@/components/home/context-panel";
 import { useSSE } from "@/components/sse-provider";
+
+const EVENT_REFRESH_DELAY_MS = 500;
+const CONNECTED_POLL_MS = 30000;
+const DISCONNECTED_POLL_MS = 5000;
 
 interface StatusPayload {
   session?: { active?: boolean; sessionId?: string | null };
@@ -34,9 +38,20 @@ interface StatusPayload {
   }>;
 }
 
+interface RefreshTargets {
+  channels?: boolean;
+  thread?: boolean;
+  status?: boolean;
+}
+
+interface RefreshOptions {
+  debounceMs?: number;
+  showLoading?: boolean;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const { lastEvent } = useSSE();
+  const { lastEvent, connected } = useSSE();
 
   const [checking, setChecking] = useState(true);
   const [sessionActive, setSessionActive] = useState<boolean | null>(null);
@@ -48,6 +63,29 @@ export default function DashboardPage() {
   const [statusData, setStatusData] = useState<StatusPayload | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
 
+  const selectedChannelIdRef = useRef(selectedChannelId);
+  const channelsRequestIdRef = useRef(0);
+  const threadRequestIdRef = useRef(0);
+  const statusRequestIdRef = useRef(0);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRefreshRef = useRef<Required<RefreshTargets>>({
+    channels: false,
+    thread: false,
+    status: false,
+  });
+
+  useEffect(() => {
+    selectedChannelIdRef.current = selectedChannelId;
+  }, [selectedChannelId]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     fetch("/api/setup/status")
       .then((res) => res.json())
@@ -56,7 +94,7 @@ export default function DashboardPage() {
           router.replace("/setup");
           return;
         }
-        setSessionActive(data.sessionActive);
+        setSessionActive(Boolean(data.sessionActive));
         setChecking(false);
       })
       .catch(() => {
@@ -64,59 +102,121 @@ export default function DashboardPage() {
       });
   }, [router]);
 
-  const loadChannels = useCallback(async () => {
-    setChannelsLoading(true);
+  const loadChannels = useCallback(async (showLoading = true) => {
+    const requestId = channelsRequestIdRef.current + 1;
+    channelsRequestIdRef.current = requestId;
+    if (showLoading) setChannelsLoading(true);
+
     try {
       const res = await fetch("/api/channels", { cache: "no-store" });
       const data = (await res.json()) as { channels?: HomeChannelSummary[] };
-      if (!res.ok) return;
+      if (!res.ok || requestId !== channelsRequestIdRef.current) return;
       setChannels(data.channels || []);
     } catch {
       // Best-effort only.
     } finally {
-      setChannelsLoading(false);
+      if (showLoading && requestId === channelsRequestIdRef.current) {
+        setChannelsLoading(false);
+      }
     }
   }, []);
 
-  const loadThread = useCallback(async (channelId: string) => {
-    setThreadLoading(true);
+  const loadThread = useCallback(async (channelId: string, showLoading = true) => {
+    const requestId = threadRequestIdRef.current + 1;
+    threadRequestIdRef.current = requestId;
+    if (showLoading) setThreadLoading(true);
+
     try {
       const res = await fetch(`/api/channels/${channelId}/thread?pageSize=300`, {
         cache: "no-store",
       });
       const data = (await res.json()) as { entries?: HomeThreadEntry[] };
-      if (!res.ok) return;
+      if (!res.ok || requestId !== threadRequestIdRef.current) return;
       setThreadEntries(data.entries || []);
     } catch {
       // Best-effort only.
     } finally {
-      setThreadLoading(false);
+      if (showLoading && requestId === threadRequestIdRef.current) {
+        setThreadLoading(false);
+      }
     }
   }, []);
 
-  const loadStatus = useCallback(async () => {
-    setStatusLoading(true);
+  const loadStatus = useCallback(async (showLoading = true) => {
+    const requestId = statusRequestIdRef.current + 1;
+    statusRequestIdRef.current = requestId;
+    if (showLoading) setStatusLoading(true);
+
     try {
       const res = await fetch("/api/status", { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok || requestId !== statusRequestIdRef.current) return;
       const data = (await res.json()) as StatusPayload;
       setStatusData(data);
+      setSessionActive(Boolean(data.session?.active));
     } catch {
       // Best-effort only.
     } finally {
-      setStatusLoading(false);
+      if (showLoading && requestId === statusRequestIdRef.current) {
+        setStatusLoading(false);
+      }
     }
   }, []);
 
+  const flushRefresh = useCallback(
+    (showLoading = false) => {
+      const pending = pendingRefreshRef.current;
+      pendingRefreshRef.current = {
+        channels: false,
+        thread: false,
+        status: false,
+      };
+
+      if (pending.channels) void loadChannels(showLoading);
+      if (pending.thread) void loadThread(selectedChannelIdRef.current, showLoading);
+      if (pending.status) void loadStatus(showLoading);
+    },
+    [loadChannels, loadStatus, loadThread]
+  );
+
+  const queueRefresh = useCallback(
+    (targets: RefreshTargets, options?: RefreshOptions) => {
+      const debounceMs = options?.debounceMs ?? EVENT_REFRESH_DELAY_MS;
+      const showLoading = options?.showLoading ?? false;
+
+      pendingRefreshRef.current.channels =
+        pendingRefreshRef.current.channels || Boolean(targets.channels);
+      pendingRefreshRef.current.thread =
+        pendingRefreshRef.current.thread || Boolean(targets.thread);
+      pendingRefreshRef.current.status =
+        pendingRefreshRef.current.status || Boolean(targets.status);
+
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+
+      if (debounceMs <= 0) {
+        flushRefresh(showLoading);
+        return;
+      }
+
+      refreshTimerRef.current = setTimeout(() => {
+        refreshTimerRef.current = null;
+        flushRefresh(showLoading);
+      }, debounceMs);
+    },
+    [flushRefresh]
+  );
+
   useEffect(() => {
     if (checking) return;
-    loadChannels();
-    loadStatus();
+    void loadChannels(true);
+    void loadStatus(true);
   }, [checking, loadChannels, loadStatus]);
 
   useEffect(() => {
     if (checking) return;
-    loadThread(selectedChannelId);
+    void loadThread(selectedChannelId, true);
   }, [checking, loadThread, selectedChannelId]);
 
   useEffect(() => {
@@ -127,31 +227,53 @@ export default function DashboardPage() {
   }, [channels, selectedChannelId]);
 
   useEffect(() => {
-    if (checking) return;
-    if (!lastEvent) return;
+    if (checking || !lastEvent) return;
 
-    if (
-      lastEvent.type === "new_logs" ||
-      lastEvent.type === "agent_status" ||
-      lastEvent.type === "cost_update" ||
-      lastEvent.type === "task_update"
-    ) {
-      loadChannels();
-      loadThread(selectedChannelId);
-      loadStatus();
+    if (lastEvent.type === "new_logs") {
+      queueRefresh(
+        { channels: true, thread: true, status: true },
+        { debounceMs: EVENT_REFRESH_DELAY_MS, showLoading: false }
+      );
+      return;
     }
-  }, [checking, lastEvent, loadChannels, loadStatus, loadThread, selectedChannelId]);
+
+    if (lastEvent.type === "agent_status") {
+      queueRefresh(
+        { status: true },
+        { debounceMs: EVENT_REFRESH_DELAY_MS, showLoading: false }
+      );
+      return;
+    }
+
+    if (lastEvent.type === "cost_update" || lastEvent.type === "task_update") {
+      queueRefresh(
+        { status: true },
+        { debounceMs: EVENT_REFRESH_DELAY_MS, showLoading: false }
+      );
+      return;
+    }
+
+    if (lastEvent.type === "connected") {
+      queueRefresh(
+        { channels: true, thread: true, status: true },
+        { debounceMs: 100, showLoading: false }
+      );
+    }
+  }, [checking, lastEvent, queueRefresh]);
 
   useEffect(() => {
     if (checking) return;
+
+    const intervalMs = connected ? CONNECTED_POLL_MS : DISCONNECTED_POLL_MS;
     const timer = setInterval(() => {
-      loadChannels();
-      loadThread(selectedChannelId);
-      loadStatus();
-    }, 5000);
+      queueRefresh(
+        { channels: true, thread: true, status: true },
+        { debounceMs: 0, showLoading: false }
+      );
+    }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [checking, loadChannels, loadStatus, loadThread, selectedChannelId]);
+  }, [checking, connected, queueRefresh]);
 
   const selectedChannel = useMemo(
     () => channels.find((channel) => channel.id === selectedChannelId) || null,
@@ -198,9 +320,10 @@ export default function DashboardPage() {
         return { ok: false, error: payload?.error || "Failed to send message" };
       }
 
-      loadChannels();
-      loadThread(selectedChannelId);
-      loadStatus();
+      queueRefresh(
+        { channels: true, thread: true, status: true },
+        { debounceMs: 0, showLoading: false }
+      );
       return { ok: true };
     } catch {
       return { ok: false, error: "Network error while sending message" };

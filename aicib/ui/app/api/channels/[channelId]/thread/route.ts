@@ -23,8 +23,10 @@ export async function GET(
       (entry) => entry.channelId === channelId
     );
 
-    const offset = pageInfo.offset;
-    const entries = allEntries.slice(offset, offset + pageInfo.pageSize);
+    const total = allEntries.length;
+    const end = Math.max(0, total - (pageInfo.page - 1) * pageInfo.pageSize);
+    const start = Math.max(0, end - pageInfo.pageSize);
+    const entries = allEntries.slice(start, end);
 
     return NextResponse.json({
       channel,
@@ -32,8 +34,8 @@ export async function GET(
       pagination: {
         page: pageInfo.page,
         pageSize: pageInfo.pageSize,
-        total: allEntries.length,
-        totalPages: Math.max(1, Math.ceil(allEntries.length / pageInfo.pageSize)),
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageInfo.pageSize)),
       },
     });
   } catch (error) {

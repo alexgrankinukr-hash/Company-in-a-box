@@ -48,6 +48,7 @@ const columnOrder: Array<{ key: Task["status"]; label: string }> = [
   { key: "in_progress", label: "In Progress" },
   { key: "in_review", label: "In Review" },
   { key: "done", label: "Done" },
+  { key: "cancelled", label: "Cancelled" },
 ];
 
 const priorityClasses: Record<Task["priority"], string> = {
@@ -191,6 +192,7 @@ function TasksPageContent() {
       in_progress: [],
       in_review: [],
       done: [],
+      cancelled: [],
     };
 
     for (const task of payload?.tasks || []) {
@@ -234,6 +236,7 @@ function TasksPageContent() {
                   { value: "in_progress", label: "In Progress" },
                   { value: "in_review", label: "In Review" },
                   { value: "done", label: "Done" },
+                  { value: "cancelled", label: "Cancelled" },
                 ],
               },
               {
@@ -289,7 +292,7 @@ function TasksPageContent() {
           />
         </div>
 
-        <div className="grid min-w-max flex-1 grid-cols-5 gap-3 overflow-x-auto pb-4">
+        <div className="grid min-w-max flex-1 grid-cols-6 gap-3 overflow-x-auto pb-4">
           {columnOrder.map((column) => (
             <div key={column.key} className="flex min-h-[420px] w-[260px] flex-col rounded-lg border border-border/80 bg-card">
               <div className="flex items-center justify-between border-b border-border/70 px-3 py-2">

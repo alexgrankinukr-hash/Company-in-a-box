@@ -87,6 +87,15 @@ export function parseCsvParam(
 }
 
 export function jsonError(error: unknown, status = 500): NextResponse {
-  const message = error instanceof Error ? error.message : "Internal server error";
+  if (status >= 500) {
+    console.error(error);
+    const message =
+      process.env.NODE_ENV === "development" && error instanceof Error
+        ? error.message
+        : "Internal server error";
+    return NextResponse.json({ error: message }, { status });
+  }
+
+  const message = error instanceof Error ? error.message : "Request failed";
   return NextResponse.json({ error: message }, { status });
 }

@@ -35,15 +35,13 @@ export function ActivityStream() {
   useEffect(() => {
     if (lastEvent?.type === "new_logs" && Array.isArray(lastEvent.data)) {
       const newEntries = lastEvent.data as LogEntry[];
-      queueMicrotask(() => {
-        setLogs((prev) => {
-          const existingIds = new Set(prev.map((l) => l.id));
-          const unique = newEntries.filter((l) => !existingIds.has(l.id));
-          if (unique.length === 0) return prev;
-          const merged = [...prev, ...unique];
-          merged.sort((a, b) => b.id - a.id);
-          return merged.slice(0, 100);
-        });
+      setLogs((prev) => {
+        const existingIds = new Set(prev.map((l) => l.id));
+        const unique = newEntries.filter((l) => !existingIds.has(l.id));
+        if (unique.length === 0) return prev;
+        const merged = [...prev, ...unique];
+        merged.sort((a, b) => b.id - a.id);
+        return merged.slice(0, 100);
       });
     }
   }, [lastEvent]);
@@ -117,44 +115,44 @@ export function ActivityStream() {
             </p>
           ) : null}
           {filteredLogs.map((log) => {
-          const colors = getAgentColorClasses(log.agent_role);
-          const relTime = formatRelativeTime(log.timestamp);
+            const colors = getAgentColorClasses(log.agent_role);
+            const relTime = formatRelativeTime(log.timestamp);
 
-          return (
-            <div
-              key={log.id}
-              className="flex gap-3 rounded-md border border-border/60 bg-card px-3 py-2.5 shadow-xs"
-            >
+            return (
               <div
-                className={cn(
-                  "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                  colors.dot
-                )}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className={cn("text-[13px] font-medium", colors.text)}>
-                    {log.agent_role
-                      ? log.agent_role.length <= 4
-                        ? log.agent_role.toUpperCase()
-                        : log.agent_role
-                            .split("-")
-                            .map(
-                              (w) => w.charAt(0).toUpperCase() + w.slice(1)
-                            )
-                            .join(" ")
-                      : "System"}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground/40">
-                    {relTime}
-                  </span>
+                key={log.id}
+                className="flex gap-3 rounded-md border border-border/60 bg-card px-3 py-2.5 shadow-xs"
+              >
+                <div
+                  className={cn(
+                    "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                    colors.dot
+                  )}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className={cn("text-[13px] font-medium", colors.text)}>
+                      {log.agent_role
+                        ? log.agent_role.length <= 4
+                          ? log.agent_role.toUpperCase()
+                          : log.agent_role
+                              .split("-")
+                              .map(
+                                (w) => w.charAt(0).toUpperCase() + w.slice(1)
+                              )
+                              .join(" ")
+                        : "System"}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground/40">
+                      {relTime}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
+                    {log.content}
+                  </p>
                 </div>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
-                  {log.content}
-                </p>
               </div>
-            </div>
-          );
+            );
           })}
         </div>
       </div>
