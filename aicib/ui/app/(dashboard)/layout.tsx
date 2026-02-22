@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { SSEProvider } from "@/components/sse-provider";
+import { BusinessBootstrapGuard } from "@/components/business-bootstrap-guard";
 
 export default function DashboardLayout({
   children,
@@ -14,7 +15,7 @@ export default function DashboardLayout({
         <div className="flex flex-1 flex-col overflow-hidden">
           <Topbar />
           <main className="flex flex-1 flex-col overflow-hidden">
-            {children}
+            <BusinessBootstrapGuard>{children}</BusinessBootstrapGuard>
           </main>
         </div>
       </div>

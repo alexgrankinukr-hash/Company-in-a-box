@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -13,26 +12,23 @@ interface StepReviewProps {
   onBack: () => void;
 }
 
-type LaunchPhase = "idle" | "initializing" | "starting" | "redirecting" | "error";
+type LaunchPhase = "idle" | "creating" | "redirecting" | "error";
 
 const phaseMessages: Record<LaunchPhase, string> = {
   idle: "",
-  initializing: "Creating project structure...",
-  starting: "Starting your AI team...",
+  creating: "Creating and starting your business...",
   redirecting: "Opening dashboard...",
   error: "",
 };
 
 const phaseProgress: Record<LaunchPhase, number> = {
   idle: 0,
-  initializing: 33,
-  starting: 66,
+  creating: 70,
   redirecting: 100,
   error: 0,
 };
 
 export function StepReview({ config, onBack }: StepReviewProps) {
-  const router = useRouter();
   const [phase, setPhase] = useState<LaunchPhase>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +38,7 @@ export function StepReview({ config, onBack }: StepReviewProps) {
   ];
 
   async function handleLaunch() {
-    setPhase("initializing");
+    setPhase("creating");
     setError(null);
 
     try {
@@ -63,12 +59,12 @@ export function StepReview({ config, onBack }: StepReviewProps) {
         }
       }
 
-      // Step 1: Initialize
-      const initRes = await fetch("/api/setup/init", {
+      const createRes = await fetch("/api/businesses/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyName: config.companyName.trim(),
+          projectDir: config.projectDir.trim(),
           template: config.template,
           persona: config.persona,
           agents: agentsMap,
@@ -76,30 +72,19 @@ export function StepReview({ config, onBack }: StepReviewProps) {
             cost_limit_daily: config.dailyLimit,
             cost_limit_monthly: config.monthlyLimit,
           },
+          startNow: true,
         }),
       });
 
-      if (!initRes.ok) {
-        const data = await initRes.json();
-        throw new Error(data.error || "Initialization failed");
+      if (!createRes.ok) {
+        const data = await createRes.json().catch(() => null);
+        throw new Error(data?.error || "Business creation failed");
       }
 
-      // Step 2: Start agents
-      setPhase("starting");
-      const startRes = await fetch("/api/setup/start", {
-        method: "POST",
-      });
-
-      if (!startRes.ok) {
-        const data = await startRes.json();
-        throw new Error(data.error || "Failed to start agents");
-      }
-
-      // Step 3: Redirect to dashboard
+      // Redirect to dashboard
       setPhase("redirecting");
-      // Small delay so the user sees the "Opening dashboard" message
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      router.push("/");
+      window.location.href = "/";
     } catch (err) {
       setPhase("error");
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -138,6 +123,12 @@ export function StepReview({ config, onBack }: StepReviewProps) {
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Template</span>
               <span className="text-foreground">SaaS Startup</span>
+            </div>
+            <div className="flex justify-between gap-4 text-sm">
+              <span className="text-muted-foreground">Folder</span>
+              <span className="truncate font-mono text-[12px] text-foreground">
+                {config.projectDir}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Personality</span>
@@ -197,7 +188,7 @@ export function StepReview({ config, onBack }: StepReviewProps) {
         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
           <li className="flex items-center gap-2">
             <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-            Creates your project config file
+            Creates your business config and workspace
           </li>
           <li className="flex items-center gap-2">
             <CheckCircle2 className="h-3 w-3 text-emerald-500" />

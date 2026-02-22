@@ -1,55 +1,32 @@
 import { NextResponse } from "next/server";
-import fs from "node:fs";
-import path from "node:path";
-import { tryGetProjectDir } from "@/lib/config";
+import { getBusinessHealth, getResolvedBusiness } from "@/lib/business-context";
+import { listBusinesses, readBusinessRegistry } from "@/lib/business-registry";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const projectDir = tryGetProjectDir();
-
-    if (!projectDir) {
-      return NextResponse.json({
-        configExists: false,
-        dbExists: false,
-        sessionActive: false,
-      });
-    }
-
-    const configExists = fs.existsSync(
-      path.join(projectDir, "aicib.config.yaml")
-    );
-    const dbPath = path.join(projectDir, ".aicib", "state.db");
-    const dbExists = fs.existsSync(dbPath);
-
-    let sessionActive = false;
-    if (dbExists) {
-      let db: { close(): void; pragma(source: string): unknown; prepare(source: string): { get(): unknown } } | null = null;
-      try {
-        const Database = (await import("better-sqlite3")).default;
-        db = new Database(dbPath, { readonly: true });
-        db.pragma("journal_mode = WAL");
-        db.pragma("busy_timeout = 5000");
-
-        const row = db
-          .prepare(
-            "SELECT id FROM sessions WHERE status = 'active' ORDER BY started_at DESC LIMIT 1"
-          )
-          .get() as { id: string } | undefined;
-
-        sessionActive = !!row;
-      } catch {
-        // DB may not have sessions table yet
-      } finally {
-        db?.close();
-      }
-    }
+    const registry = readBusinessRegistry();
+    const businesses = listBusinesses();
+    const activeBusiness = getResolvedBusiness();
+    const health = activeBusiness
+      ? getBusinessHealth(activeBusiness.projectDir)
+      : { configExists: false, dbExists: false, sessionActive: false };
 
     return NextResponse.json({
-      configExists,
-      dbExists,
-      sessionActive,
+      configExists: health.configExists,
+      dbExists: health.dbExists,
+      sessionActive: health.sessionActive,
+      hasAnyBusiness: businesses.length > 0,
+      activeBusinessId: registry.activeBusinessId,
+      activeBusiness: activeBusiness
+        ? {
+            id: activeBusiness.id,
+            name: activeBusiness.name,
+            projectDir: activeBusiness.projectDir,
+            template: activeBusiness.template,
+          }
+        : null,
     });
   } catch (error) {
     const message =

@@ -15,6 +15,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BusinessSwitcher } from "@/components/business-switcher";
 
 const navItems = [
   { href: "/", label: "Home", icon: LayoutDashboard },
@@ -34,11 +35,8 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-60 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur">
-      <div className="flex h-12 items-center gap-2 border-b border-sidebar-border px-5">
-        <div className="h-2 w-2 rounded-full bg-slate-500" />
-        <span className="text-[13px] font-semibold tracking-tight text-sidebar-foreground">
-          AICIB Dashboard
-        </span>
+      <div className="border-b border-sidebar-border px-3 py-2">
+        <BusinessSwitcher />
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 p-3">

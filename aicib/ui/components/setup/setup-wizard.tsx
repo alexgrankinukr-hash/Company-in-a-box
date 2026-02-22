@@ -19,6 +19,7 @@ export interface AgentConfig {
 
 export interface WizardConfig {
   companyName: string;
+  projectDir: string;
   template: string;
   persona: string;
   agents: AgentConfig[];
@@ -113,6 +114,7 @@ export function SetupWizard() {
   const [step, setStep] = useState<WizardStep>("company");
   const [config, setConfig] = useState<WizardConfig>({
     companyName: "",
+    projectDir: "",
     template: "saas-startup",
     persona: "professional",
     agents: defaultAgents,

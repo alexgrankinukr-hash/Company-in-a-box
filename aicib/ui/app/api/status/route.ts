@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { tryGetProjectDir } from "@/lib/config";
 import { getDb } from "@/lib/db";
 import { jsonError, safeAll, safeGet, tableExists } from "@/lib/api-helpers";
 import { readAppConfig } from "@/lib/config-read";
@@ -7,6 +8,32 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const projectDir = tryGetProjectDir();
+    if (!projectDir) {
+      return NextResponse.json({
+        company: { name: "No business selected", template: "none" },
+        session: { active: false },
+        agents: [],
+        costs: {
+          today: 0,
+          month: 0,
+          dailyLimit: 0,
+          monthlyLimit: 0,
+        },
+        tasks: {
+          backlog: 0,
+          todo: 0,
+          in_progress: 0,
+          in_review: 0,
+          done: 0,
+          cancelled: 0,
+          total: 0,
+        },
+        recentLogs: [],
+        recentJobs: [],
+      });
+    }
+
     const db = getDb();
     const config = readAppConfig();
 

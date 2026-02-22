@@ -2,27 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SetupWizard } from "@/components/setup/setup-wizard";
 import { Loader2 } from "lucide-react";
 
 export default function SetupPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading] = useState(true);
 
   useEffect(() => {
-    // Check if setup is already done — redirect to dashboard if so
-    fetch("/api/setup/status")
+    fetch("/api/businesses", { cache: "no-store" })
       .then((res) => res.json())
-      .then((data) => {
-        if (data.configExists) {
+      .then((payload: { hasAnyBusiness?: boolean }) => {
+        if (payload.hasAnyBusiness) {
           router.replace("/");
         } else {
-          setLoading(false);
+          router.replace("/businesses/new");
         }
       })
       .catch(() => {
-        // If status check fails, show wizard anyway
-        setLoading(false);
+        router.replace("/businesses/new");
       });
   }, [router]);
 
@@ -34,5 +31,5 @@ export default function SetupPage() {
     );
   }
 
-  return <SetupWizard />;
+  return null;
 }

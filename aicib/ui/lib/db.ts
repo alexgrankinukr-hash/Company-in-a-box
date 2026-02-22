@@ -4,6 +4,13 @@ import fs from "node:fs";
 import { getProjectDir } from "./config";
 
 let cachedDb: Database.Database | null = null;
+let cachedDbPath: string | null = null;
+
+function resolveDbPath(projectDir: string): string {
+  const dbDir = path.join(projectDir, ".aicib");
+  fs.mkdirSync(dbDir, { recursive: true });
+  return path.join(dbDir, "state.db");
+}
 
 /**
  * Get a shared SQLite database connection to .aicib/state.db.
@@ -11,20 +18,28 @@ let cachedDb: Database.Database | null = null;
  * the Next.js dev server is long-lived.
  */
 export function getDb(): Database.Database {
-  if (cachedDb) return cachedDb;
-
   const projectDir = getProjectDir();
-  const dbPath = path.join(projectDir, ".aicib", "state.db");
+  const dbPath = resolveDbPath(projectDir);
 
-  if (!fs.existsSync(dbPath)) {
-    throw new Error(
-      `Database not found at ${dbPath}. Run 'aicib init' and 'aicib start' first.`
-    );
+  if (cachedDb && cachedDbPath === dbPath) {
+    return cachedDb;
   }
 
+  if (cachedDb && cachedDbPath !== dbPath) {
+    try {
+      cachedDb.close();
+    } catch {
+      // Ignore close errors and replace stale handle.
+    }
+    cachedDb = null;
+    cachedDbPath = null;
+  }
+
+  // Opening write-mode will create an empty DB when missing.
   cachedDb = new Database(dbPath);
   cachedDb.pragma("journal_mode = WAL");
   cachedDb.pragma("busy_timeout = 5000");
+  cachedDbPath = dbPath;
 
   return cachedDb;
 }
@@ -35,7 +50,13 @@ export function getDb(): Database.Database {
  */
 export function openReadOnlyDb(): Database.Database {
   const projectDir = getProjectDir();
-  const dbPath = path.join(projectDir, ".aicib", "state.db");
+  const dbPath = resolveDbPath(projectDir);
+
+  if (!fs.existsSync(dbPath)) {
+    // Create an empty file first, then reopen in readonly mode.
+    const warmup = new Database(dbPath);
+    warmup.close();
+  }
 
   const db = new Database(dbPath, { readonly: true });
   db.pragma("journal_mode = WAL");

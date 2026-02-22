@@ -47,9 +47,12 @@ export function StepCompany({
   onNext,
 }: StepCompanyProps) {
   const [nameError, setNameError] = useState<string | null>(null);
+  const [pathError, setPathError] = useState<string | null>(null);
 
   function validate(): boolean {
     const name = config.companyName.trim();
+    const projectDir = config.projectDir.trim();
+
     if (!name) {
       setNameError("Company name is required");
       return false;
@@ -58,7 +61,12 @@ export function StepCompany({
       setNameError("Name must be at least 2 characters");
       return false;
     }
+    if (!projectDir) {
+      setPathError("Project folder is required");
+      return false;
+    }
     setNameError(null);
+    setPathError(null);
     return true;
   }
 
@@ -89,6 +97,33 @@ export function StepCompany({
         />
         {nameError && (
           <p className="text-xs text-destructive">{nameError}</p>
+        )}
+      </div>
+
+      {/* Project folder */}
+      <div className="space-y-2">
+        <Label htmlFor="project-dir" className="text-sm font-medium">
+          Project Folder
+        </Label>
+        <Input
+          id="project-dir"
+          value={config.projectDir}
+          onChange={(e) => {
+            updateConfig({ projectDir: e.target.value });
+            if (pathError) setPathError(null);
+          }}
+          placeholder="/Users/you/My Startup"
+          className="bg-muted/50"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleNext();
+          }}
+        />
+        {pathError ? (
+          <p className="text-xs text-destructive">{pathError}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Use a full folder path. We will create the business there.
+          </p>
         )}
       </div>
 
